@@ -2,7 +2,7 @@ jQuery(document).ready(function($) {
 
 	var $window	= $(window);
 
-	$window.load(function(){
+	$window.on('load',function(){
 
 		var adsLoaded	= [],
 			adsToLoad	= [],
