@@ -398,7 +398,6 @@ class Wp_Dfp_Ads {
 					foreach ( explode( '/', $parents ) as $cat ) {
 
 						$term	= $this->_sanitize_term( $cat );
-						$term	= str_replace( '-', '_', $term );
 
 						$suffix .= '/'. $term;
 
@@ -436,7 +435,6 @@ class Wp_Dfp_Ads {
 					foreach ( explode( '/', $parents ) as $cat ) {
 
 						$cat = $this->_sanitize_term( $cat );
-						$cat = str_replace( '-', '_', $cat );
 
 						if ( !empty( $cat ) && !in_array( $cat, $keywords ) ) {
 
@@ -504,7 +502,6 @@ class Wp_Dfp_Ads {
 						foreach ( explode( $parents, '/' ) as $cat ) {
 
 							$cat = $this->_sanitize_term( $cat );
-							$cat = str_replace( '-', '_', $cat );
 
 							if ( !in_array( $cat, $keywords ) ) {
 
@@ -873,7 +870,8 @@ class Wp_Dfp_Ads {
 		$term = str_replace( '_&amp;', '', $term );
 		$term = str_replace( '_&', '', $term );
 		$term = str_replace( "'", '', $term );
-		$term = str_replace( ",", '', $term );
+		$term = str_replace( ',', '', $term );
+		$term = str_replace( '-', '_', $term ); // DFP doesnt like dashes in it's ad units
 		$term = preg_replace('/[^a-zA-Z0-9-_]/', '', $term);
 		$term = strtolower( $term );
 
