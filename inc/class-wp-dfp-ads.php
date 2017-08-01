@@ -683,25 +683,10 @@ class Wp_Dfp_Ads {
 			// check for AMP Articles endpoint
 			$is_amp = ( function_exists( 'is_amp_endpoint' ) && is_amp_endpoint() ? true : false );
 
-			if ( true === $is_amp ) {
-
-				$adKw =  Wp_Dfp_Ads::singleton()->generate_dfp_keywords();
-
-				// wrap the ad in the correct markup
-				$ad_text = '<div class="advert advert_xs_300x250 advert_location_inline">
-					<div class="advert__wrap">
-						<amp-ad width="300" height="250" type="doubleclick" data-slot="'.$adKw.'"></amp-ad>
-					</div>
-				</div>';
-
-			} else {
-
-				// wrap the ad in the correct markup
-				$ad_text = '<aside class="advert advert_location_inline">
-					<div class="advert__wrap">' . $inarticle_ad . '</div>
-				</aside>';
-
-			}
+			// wrap the ad in the correct markup
+			$ad_text = '<aside class="advert advert_location_inline">
+				<div class="advert__wrap">' . $inarticle_ad . '</div>
+			</aside>';
 
 			/**
 			 * Filters the inarticle ad.
