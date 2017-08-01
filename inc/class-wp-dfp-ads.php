@@ -300,6 +300,9 @@ class Wp_Dfp_Ads {
 						$html .= 'var slotId  = event.slot.getSlotId().getDomId();' ."\n\t\t\t\t\t";
 						$html .= 'var slot    = document.getElementById(slotId);' ."\n\t\t\t\t\t";
 						$html .= 'if ( slot !== null && !event.isEmpty ) {' ."\n\t\t\t\t\t\t";
+							// add "advert-loaded" to div
+							$html .= 'slot.className += " advert-loaded";';
+							// hide any fallback content within the parent div of the ad
 							$html .= 'var parentDiv  = slot.parentNode;' ."\n\t\t\t\t\t\t";
 							$html .= 'var fallbacks  = parentDiv.getElementsByClassName(\'ad_fallback\');' ."\n\t\t\t\t\t\t";
 							$html .= 'for ( var i = 0; i < fallbacks.length; i++ ) {' ."\n\t\t\t\t\t\t\t";
