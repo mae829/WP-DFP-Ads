@@ -680,9 +680,6 @@ class Wp_Dfp_Ads {
 		// check that it's a single post
 		if ( is_single() ) {
 
-			// check for AMP Articles endpoint
-			$is_amp = ( function_exists( 'is_amp_endpoint' ) && is_amp_endpoint() ? true : false );
-
 			// wrap the ad in the correct markup
 			$ad_text = '<aside class="advert advert_location_inline">
 				<div class="advert__wrap">' . $inarticle_ad . '</div>
