@@ -20,6 +20,12 @@ class Post_Type_Ads {
 
 	static $instance = false;
 
+	static $ad_breakpoints	= array(
+		'768',
+		'992',
+		'1200'
+	);
+
 	public function __construct() {
 
 		$this->_add_actions();
@@ -139,6 +145,18 @@ class Post_Type_Ads {
 			$ad_sizes[$ad_size->name]	= $ad_size->name;
 		}
 
+		// Build the responsive ad sizes
+		// Begin with 0
+		$ad_breakpoints	= array(
+			'-'		=> '0px'
+		);
+
+		self::$ad_breakpoints	= apply_filters( 'wp_dfp_ads_breakpoints', self::$ad_breakpoints );
+
+		foreach ( self::$ad_breakpoints as $breakpoint ) {
+			$ad_breakpoints[$breakpoint]	= '>= '. $breakpoint .'px';
+		}
+
 		// Initiate metabox
 		$responsive_sizes_box	= new_cmb2_box( array(
 			'id'			=> 'responsive_ad_sizes',
@@ -172,12 +190,7 @@ class Post_Type_Ads {
 			'id'		=> 'breakpoint',
 			'name'		=> __( 'Breakpoint', 'wp_dfp_ads' ),
 			'type'		=> 'radio_inline',
-			'options'	=> array(
-				'-'			=> __( '0px', 'wp_dfp_ads' ),
-				'768'		=> __( '>= 768px', 'wp_dfp_ads' ),
-				'992'		=> __( '>= 992px', 'wp_dfp_ads' ),
-				'1200'		=> __( '>= 1200px', 'wp_dfp_ads' ),
-			),
+			'options'	=> $ad_breakpoints,
 		) );
 
 		$responsive_sizes_box->add_group_field( $responsive_size_group, array(
