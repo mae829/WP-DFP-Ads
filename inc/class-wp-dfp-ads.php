@@ -14,15 +14,20 @@ class Wp_Dfp_Ads {
 		'advert-slot',
 		'advert-logic',
 		'advert-markup',
+		'advert-exclude-lazyload',
 		'advert-mapname',
 		'advert-breakpoints'
 	);
 
 	static $instance = false;
 
-	public static $sidebar_bottom_ad = false;
+	public static $lazyload_status = false;
 
 	public function __construct() {
+
+		// find out if lazy-load ads and prebid are on
+		$wp_dfp_ads_settings	= get_option( 'wp_dfp_ads_settings' );
+		self::$lazyload_status	= !empty( $wp_dfp_ads_settings['lazy-load'] ) ? true : false;
 
 		$this->_add_actions();
 	}
@@ -105,6 +110,11 @@ class Wp_Dfp_Ads {
 						$ads[$value->post_id]['advert-logic'] = "return ( {$value->meta_value} ? true : false );";
 
 					}
+
+				} elseif ( 'advert-exclude-lazyload' === $value->meta_key && !isset( $ads[$value->post_id]['advert-exclude-lazyload'] ) ) {
+
+					// set value
+					$ads[$value->post_id]['advert-exclude-lazyload'] = $value->meta_value;
 
 				} elseif ( 'advert-mapname' === $value->meta_key && !isset( $ads[$value->post_id]['advert-mapname'] ) ) {
 
@@ -230,10 +240,14 @@ class Wp_Dfp_Ads {
 
 						}
 
-						$slot_markup	.= ".addService( googletag.pubads() );\n\t\t\t\t";
+						$slot_markup	.= ".addService( googletag.pubads() )";
 
-						$div = str_replace( 'slot_', 'div-', $slot );
+						// make sure the ad collapses if it is not part of the lazy-load set up, in case nothing gets returned
+						$slot_markup	.= self::$lazyload_status && !empty( $ad['advert-exclude-lazyload'] ) ? ".setCollapseEmptyDiv(true);\n\t\t\t\t" : ";\n\t\t\t\t";
 
+						$slot_markup	.= self::$lazyload_status && empty( $ad['advert-exclude-lazyload'] ) ? "refresh_slots['". $slot ."'] = ". $slot .";\n\t\t\t\t" : '';
+
+						$div = str_replace( 'slot_', 'div_', $slot );
 
 						$slot_definitions .= sprintf(
 							$slot_markup,
@@ -256,6 +270,10 @@ class Wp_Dfp_Ads {
 			}
 
 			$html = '<script>' ."\n\t\t\t";
+
+				if ( self::$lazyload_status ) {
+					$html .= 'var refresh_slots = [];' ."\n\t\t\t";
+				}
 
 				// define googletag before anything
 				$html .= 'var googletag = googletag || {};' ."\n\t\t\t";
@@ -290,9 +308,14 @@ class Wp_Dfp_Ads {
 						$html .= '}' ."\n\t\t\t\t";
 					$html .= '});' ."\n\t\t\t\t";
 
-					$html .= 'googletag.pubads().enableAsyncRendering();' ."\n\t\t\t\t";
+					if ( self::$lazyload_status ) {
+						$html .= 'googletag.pubads().disableInitialLoad();' ."\n\t\t\t\t";
+					} else {
+						$html .= 'googletag.pubads().enableAsyncRendering();' ."\n\t\t\t\t";
+						$html .= 'googletag.pubads().collapseEmptyDivs(true);' ."\n\t\t\t\t";
+					}
 					$html .= 'googletag.pubads().enableSingleRequest();' ."\n\t\t\t\t";
-					$html .= 'googletag.pubads().collapseEmptyDivs(true);' ."\n\t\t\t\t";
+					$html .= 'googletag.pubads().setCentering(true);' ."\n\t\t\t\t";
 					$html .= 'googletag.enableServices();' ."\n\t\t\t";
 
 				$html .= '} );' ."\n\t\t";
@@ -314,13 +337,13 @@ class Wp_Dfp_Ads {
 	 *
 	 * Generates the DFP Keyword string which identifies the current page.
 	 *
-	 * @param  $include_prefix []
+	 * @param  $append_prefix []
 	 *
 	 * @return string String containing the necessary DFP keyword information for the current page.
 	 */
-	public function generate_dfp_keywords( $include_prefix = true ) {
+	public function generate_dfp_keywords( $append_prefix = true ) {
 
-		$prefix	= function_exists( 'wp_dfp_ads_get_option' ) && wp_dfp_ads_get_option( 'dfp-prefix' ) ? wp_dfp_ads_get_option( 'dfp-prefix' ) : '';
+		$prefix	= wp_dfp_ads_get_option( 'dfp-prefix' ) ? wp_dfp_ads_get_option( 'dfp-prefix' ) : '';
 
 		/**
 		 * Enforce all ad keyword rules and generate a comma-separated list
@@ -372,6 +395,8 @@ class Wp_Dfp_Ads {
 					foreach ( explode( '/', $parents ) as $cat ) {
 
 						$term	= $this->_sanitize_term( $cat );
+						$term	= str_replace( '-', '_', $term );
+
 						$suffix .= '/'. $term;
 
 					}
@@ -408,6 +433,7 @@ class Wp_Dfp_Ads {
 					foreach ( explode( '/', $parents ) as $cat ) {
 
 						$cat = $this->_sanitize_term( $cat );
+						$cat = str_replace( '-', '_', $cat );
 
 						if ( !empty( $cat ) && !in_array( $cat, $keywords ) ) {
 
@@ -448,6 +474,10 @@ class Wp_Dfp_Ads {
 			$curauth = get_user_by('slug', get_query_var('author_name'));
 			$suffix .= "/{$curauth->user_nicename}";
 
+		} elseif ( is_search() ) {
+
+			$suffix .= "/search";
+
 		/**
 		 * Blanket rules for everything else is to just grab any
 		 * categories / parent categories
@@ -471,6 +501,7 @@ class Wp_Dfp_Ads {
 						foreach ( explode( $parents, '/' ) as $cat ) {
 
 							$cat = $this->_sanitize_term( $cat );
+							$cat = str_replace( '-', '_', $cat );
 
 							if ( !in_array( $cat, $keywords ) ) {
 
@@ -490,7 +521,7 @@ class Wp_Dfp_Ads {
 
 		}
 
-		return $include_prefix ? "{$prefix}{$suffix}" : "{$suffix}";
+		return $append_prefix ? "{$prefix}{$suffix}" : "{$suffix}";
 	}
 
 	/**
@@ -520,49 +551,43 @@ class Wp_Dfp_Ads {
 
 		if ( false === $ads = get_transient( $slot . '_slot_ad' ) ) {
 
-			$sql =
-				"SELECT pm.meta_value AS 'advert_slot', ".
-					"pm2.meta_value AS 'advert_logic', ".
-					"pm3.meta_value AS 'advert_markup', ".
-					"pm4.meta_value AS 'advert_id' ".
-				"FROM {$wpdb->posts} p ".
-					// "LEFT JOIN {$wpdb->term_relationships} tr ON tr.object_id = p.ID ".
-					// "LEFT JOIN {$wpdb->term_taxonomy} tt ON tt.term_taxonomy_id = tr.term_taxonomy_id ".
-					// "LEFT JOIN {$wpdb->terms} t ON t.term_id = tt.term_id ".
-					"LEFT JOIN {$wpdb->postmeta} pm ON pm.post_id = p.ID ".
-					"LEFT JOIN {$wpdb->postmeta} pm2 ON pm2.post_id = p.ID ".
-					"LEFT JOIN {$wpdb->postmeta} pm3 ON pm3.post_id = p.ID ".
-					"LEFT JOIN {$wpdb->postmeta} pm4 ON pm4.post_id = p.ID ".
-				"WHERE p.post_type = 'advert' AND p.post_status = 'publish' ".
-					"AND pm4.meta_value ";
+			$ads	= array();
 
-				if ( !is_array( $slot ) ) {
+			$args	= array(
+				'post_type'			=> 'advert',
+				'posts_per_page'	=> -1,
+				'fields'			=> 'ids',
+				'meta_query'		=> array(
+					array(
+						'key'	=> 'advert-id',
+						'value'	=> $slot
+					)
+				)
+			);
 
-					$sql .=  "= '". $slot ."' ";
-					$pattern = $slot;
+			$ads_object	= new WP_Query( $args );
 
-				} else {
+			foreach ( $ads_object->posts as $ad_id ) {
 
-					$sql .= "IN('". implode("','", $slot) ."') ";
-					$pattern = implode('|', $slot);
+				$ads[]	= self::get_meta(
+					$ad_id,
+					array(
+						'advert-slot',
+						'advert-logic',
+						'advert-markup',
+						'advert-exclude-lazyload'
+					),
+					'post',
+					OBJECT
+				);
 
-				}
+			}
 
-			$sql .=
-					"AND pm.meta_key = 'advert-slot' ".
-					"AND pm2.meta_key = 'advert-logic' ".
-					"AND pm3.meta_key = 'advert-markup' ".
-					"AND pm4.meta_key = 'advert-id' ".
-					"ORDER BY p.post_date DESC";
-
-			$ads = $wpdb->get_results($sql);
 			set_transient( $slot . '_slot_ad', $ads );
 
-		} else {
-
-			$pattern	= !is_array( $slot ) ? $slot : implode('|', $slot);
-
 		}
+
+		$pattern	= !is_array( $slot ) ? $slot : implode('|', $slot);
 
 		if ( !empty( $ads ) ) {
 
@@ -570,9 +595,10 @@ class Wp_Dfp_Ads {
 
 			foreach ( $ads as $ad ) {
 
-				if ( !empty( $ad->advert_logic  ) ) {
+				if ( !empty( $ad->{'advert-logic'} ) ) {
 
-					$logic = "return ( {$ad->advert_logic} ? true : false );";
+					$logic = $ad->{'advert-logic'};
+					$logic = "return ( {$logic} ? true : false );";
 
 					if( false === eval( $logic ) ) {
 						continue;
@@ -580,26 +606,27 @@ class Wp_Dfp_Ads {
 
 				}
 
-				if ( !empty( $ad->advert_markup ) ) {
+				if ( !empty( $ad->{'advert-markup'} ) ) {
 
-					$placements[] = $ad->advert_markup;
+					$placements[] = $ad->{'advert-markup'};
 
 				} else {
 
-					$pattern = str_replace('-', '_', $pattern);
+					$pattern = str_replace( '-', '_', $pattern );
 
-					preg_match_all("/(([a-z0-9_]+)($pattern)([a-z0-9_]+)?)/", $ad->advert_slot, $matches);
+					preg_match_all( "/(([a-z0-9_]+)($pattern)([a-z0-9_]+)?)/", $ad->{'advert-slot'}, $matches );
 
 					if ( !empty( $matches[0] ) ) {
 
 						foreach ( $matches[0] as $match ) {
 
-							$div = str_replace( 'slot_', 'div-', $match );
+							$div = str_replace( 'slot_', 'div_', $match );
 
 							$html = '<div id="'. $div .'">';
 								$html .= '<script>';
 									$html .= 'googletag.cmd.push(function() { ';
 										$html .= 'googletag.display( "'. $div .'" ); ';
+										$html .= ( self::$lazyload_status && !empty( $ad->{'advert-exclude-lazyload'} ) ) ? 'googletag.pubads().refresh(['. $match .']);' : '';
 									$html .= '});';
 								$html .= '</script>';
 							$html .= '</div>';
@@ -788,6 +815,22 @@ class Wp_Dfp_Ads {
 	}
 
 	/**
+	 * Load scripts for the front-end required by the plugin.
+	 */
+	public function enqueue_files() {
+
+		if ( self::$lazyload_status ) {
+			// make sure jQuery is enqueued
+			if ( !wp_script_is( 'jquery' ) ) {
+				wp_enqueue_script( 'jquery', 'https://code.jquery.com/jquery-2.2.4.min.js', array(), '2.2.4', true );
+			}
+
+			wp_enqueue_script( 'wp-dfp-ads-lazyload', WP_DFP_ADS_URL .'js/lazy-load.min.js', array('jquery'), WP_DFP_ADS_VERSION, true );
+		}
+
+	}
+
+	/**
 	 * Add Actions
 	 *
 	 * Defines all the WordPress actions and filters used by this class.
@@ -799,6 +842,7 @@ class Wp_Dfp_Ads {
 
 		// front-end filters
 		add_filter( 'the_content', array( $this, 'inarticle_ad' ) );
+		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_files' ) );
 
 	}
 
@@ -835,4 +879,60 @@ class Wp_Dfp_Ads {
 
 		return $term;
 	}
+
+	/**
+	 * Get Meta
+	 *
+	 * Utility function used to consolidate the quering of multiple meta values
+	 * for the given object.
+	 *
+	 * @param int	 	$id ID of the current object.
+	 * @param mixed		$fields Array/string containing meta field(s) to retrieve from database.
+	 * @param string	$type Type of metadata request. Options: post/term/user
+	 * @param constant	$output pre-defined constant for return type (OBJECT/ARRAY_A)
+	 *
+	 * @return mixed	MySQL object/Associative Array containing returned post metadata.
+	 */
+	public static function get_meta( $id = null, $fields = array(), $type = 'post', $output = ARRAY_A ) {
+		global $wpdb;
+
+		$fields		= esc_sql( $fields );
+		$values_arr	= array();
+		$values_obj	= new stdClass();
+		$dbtable	= $wpdb->{$type.'meta'};
+		$column_id	= $type . '_id';
+		$id			= $id == null ? get_the_ID() : $id ;
+
+		// make sure ID exists or query will return error. or else return NULL
+		if ( is_null( $id ) || $id === false ) {
+			return null;
+		}
+
+		$query		= "SELECT meta_key, meta_value FROM {$dbtable} WHERE {$column_id} = {$id}";
+
+		if ( !empty( $fields ) ) {
+
+			if ( is_array( $fields ) ) {
+				$query .= " AND meta_key IN ('". implode("','", $fields) ."')";
+			} else {
+				$query .= " AND meta_key = '{$fields}'";
+			}
+		}
+
+		$results	=  $wpdb->get_results( $query, OBJECT_K );
+
+		foreach ( $results as $key => $result ) {
+			$values_arr[$key]	= is_serialized( $result->meta_value ) ? unserialize( $result->meta_value ) : $result->meta_value;
+			$values_obj->{$key}	= is_serialized( $result->meta_value ) ? unserialize( $result->meta_value ) : $result->meta_value;
+		}
+
+		if ( !is_array( $fields ) && !empty( $values_arr[$fields] ) ) {
+
+			return $output == ARRAY_A ? $values_arr[$fields] : $values_obj[$fields];
+
+		}
+
+		return $output == ARRAY_A ? $values_arr : $values_obj;
+	}
+
 }

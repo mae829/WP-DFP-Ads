@@ -55,6 +55,7 @@ class Wp_Dfp_Admin {
 	 */
 	public function register_files( $hook ){
 
+
 		global $wp_dfp_ads_options_page;
 		global $post_type;
 
@@ -62,7 +63,7 @@ class Wp_Dfp_Admin {
 			return;
 
 		// queue main styles and scripts
-		wp_enqueue_style( 'wp-dfp-ads-styles-admin', WP_DFP_ADS_URL . 'css/metabox-ui.min.css' );
+		wp_enqueue_style( 'wp-dfp-ads-styles-admin', WP_DFP_ADS_URL .'/css/metabox-ui.min.css', array(), WP_DFP_ADS_VERSION );
 
 	}
 
@@ -128,6 +129,13 @@ class Wp_Dfp_Admin {
 			'type'	=> 'text',
 			'desc'	=> 'If left empty will default to "ad_fallback".'
 		) );*/
+
+		$cmb->add_field( array(
+			'id'	=> 'lazy-load',
+			'name'	=> __( 'Lazy-load Ads (on/off)', 'wp-dfp-ads' ),
+			'type'	=> 'checkbox',
+			'desc'	=> 'Turn lazy loaded ads on/off.'
+		) );
 
 	}
 

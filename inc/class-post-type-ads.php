@@ -11,6 +11,7 @@ class Post_Type_Ads {
 		'advert-slot',
 		'advert-logic',
 		'advert-markup',
+		'advert-exclude-lazyload',
 		'advert-mapname',
 		'advert-breakpoints'
 	);
@@ -18,8 +19,6 @@ class Post_Type_Ads {
 	var $admin_notice_key = 'ad_sanitized';
 
 	static $instance = false;
-
-	public static $sidebar_bottom_ad = false;
 
 	public function __construct() {
 
@@ -208,10 +207,11 @@ class Post_Type_Ads {
 		$slot		= ( !empty( $post_meta['advert-slot'] ) ? $post_meta['advert-slot']->meta_value : '' );
 		$logic		= ( !empty( $post_meta['advert-logic'] ) ? $post_meta['advert-logic']->meta_value : '' );
 		$markup		= ( !empty( $post_meta['advert-markup'] ) ? $post_meta['advert-markup']->meta_value : '' );
+		$lazyload	= ( !empty( $post_meta['advert-exclude-lazyload'] ) ? $post_meta['advert-exclude-lazyload']->meta_value : '' );
 
 		wp_nonce_field( 'wp_dfp_ads_meta_box','wp_dfp_ads_meta_box_nonce' );
 
-		require( WP_DFP_ADS_DIR .'/inc/meta-boxes/advert-meta-box.php' );
+		require WP_DFP_ADS_DIR .'/inc/meta-boxes/advert-meta-box.php';
 	}
 
 	/**
@@ -385,9 +385,13 @@ class Post_Type_Ads {
 
 			$name = str_replace( '-', '_', $field );
 
-			if ( isset( $_POST[$name] ) ) {
+			if ( 'advert_exclude_lazyload' === $name ) {
 
-				write_to_log($_POST[$name]);
+				$meta_value	= isset( $_POST[$name] ) ? 'on' : false;
+
+				update_post_meta( $post_id, "{$field}", $meta_value );
+
+			} elseif ( isset( $_POST[$name] ) ) {
 
 				if ( 'advert_id' === $name ) {
 
@@ -468,7 +472,9 @@ class Post_Type_Ads {
 				update_post_meta( $post_id, "{$field}", $meta_value );
 
 			}
+
 		}
+
 	}
 
 	/**

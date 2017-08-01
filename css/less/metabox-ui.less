@@ -1,20 +1,32 @@
 // ------------------------------
 // Meta Boxes
 // ------------------------------
-.wpdfpads__meta-box {
+.table__meta-box {
+	border-collapse: collapse;
 	width: 100%;
-	// word-break: break-all;
-	// word-wrap: break-word;
+	word-break: break-all;
+	word-wrap: break-word;
 
-	label {
-		display: block;
-		font-size: .875rem;
-		line-height: 2em;
+	th {
+		text-align: left;
 	}
 
-	.sort {
-		font-size: 15px;
-		line-height: 15px;
+	tr {
+		border-bottom: 1px solid #e9e9e9;
+	}
+
+	td {
+		padding: 15px 10px;
+	}
+
+	label {
+		font-size: .875rem;
+		line-height: 2em;
+		margin-right: 5px;
+	}
+
+	textarea {
+		width: 100%;
 	}
 }
 
