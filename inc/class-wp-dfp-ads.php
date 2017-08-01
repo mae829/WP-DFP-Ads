@@ -521,6 +521,21 @@ class Wp_Dfp_Ads {
 
 		}
 
+		/**
+		 * Filters the suffix.
+		 *
+		 * Returning false to this hook is the recommended way to never show an in-article ad
+		 * (even w/one defined in the admin area).
+		 *
+		 * @param string $ad_wrapper String to use and wrap the article.
+		 */
+		$suffix	= apply_filters( 'wp_dfp_ads_keywords', $suffix );
+
+		// Make sure the $suffix was returned with a leading slash
+		if ( 0 !== strpos( $suffix, '/' ) ) {
+			$suffix = '/'. $suffix;
+		}
+
 		return $append_prefix ? "{$prefix}{$suffix}" : "{$suffix}";
 	}
 
