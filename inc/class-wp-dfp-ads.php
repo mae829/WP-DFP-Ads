@@ -542,9 +542,9 @@ class Wp_Dfp_Ads {
 	 *
 	 * Displays the appropriate ad for the given slot.
 	 *
-	 * @param  mixed $slot Name(s) of slot(s) (aka "advert-location") to query.
+	 * @param  mixed	$slot	Name(s) of slot(s) (aka "advert-id") to query.
 	 *
-	 * @return [type]       [description]
+	 * @return mixed			Markup to display the ad
 	 */
 	public static function display_ad( $slot = null ) {
 		global $wpdb;
@@ -562,7 +562,10 @@ class Wp_Dfp_Ads {
 						'key'	=> 'advert-id',
 						'value'	=> $slot
 					)
-				)
+				),
+				'no_found_rows'				=> true,
+				'update_post_meta_cache'	=> false,
+				'ignore_sticky_posts'		=> true,
 			);
 
 			$ads_object	= new WP_Query( $args );
@@ -642,7 +645,7 @@ class Wp_Dfp_Ads {
 			}
 
 			/**
-			 * If $slot is an array then the return value sound be an array
+			 * If $slot is an array then the return value should be an array
 			 * containing the markup for each requested placement; otherwise
 			 * return the markup for the requested placement.
 			 */
