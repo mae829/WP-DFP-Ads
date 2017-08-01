@@ -674,11 +674,10 @@ class Wp_Dfp_Ads {
 		$inarticle_ad	= Wp_Dfp_Ads::display_ad( 'inarticle' );
 
 		// check ad exists
-		if ( $inarticle_ad == '' ) {
+		if ( $inarticle_ad == '' )
 			return $content;
-		}
 
-		// check that is single post
+		// check that it's a single post
 		if ( is_single() ) {
 
 			// check for AMP Articles endpoint
@@ -704,6 +703,22 @@ class Wp_Dfp_Ads {
 
 			}
 
+			/**
+			 * Filters the inarticle ad.
+			 *
+			 * Returning false to this hook is the recommended way to never show an in-article ad
+			 * (even w/one defined in the admin area).
+			 *
+			 * @since 1.2
+			 *
+			 * @param string $ad_wrapper String to use and wrap the article.
+			 */
+			$ad_text	= apply_filters( 'wp_dfp_ads_inarticle', $ad_text, $inarticle_ad );
+
+			// if the user for some reason returned false on the filter, simply return the content
+			if ( !$ad_text )
+				return $content;
+
 			$paragraphs     = preg_split('~(?<=</p>)~', wptexturize($content), null, PREG_SPLIT_NO_EMPTY);
 			$valid_ps_grid  = array();
 			$valid_ps       = array();
@@ -711,8 +726,8 @@ class Wp_Dfp_Ads {
 			/**
 			 *  Check that the paragraphs in question are valid paragraphs
 			 *  - Must be longer than 15 words
-			 *  - Decided to go with min. characters, but leaving the logic for wordcount in here (140 like Twitter)
-			 *  These would be empty pagraphs left behind by editors or simple paragraphs that would make it weird to display the ad before/after
+			 *  - Decided to go with min. characters, but leaving the logic for word count in here (140 like Twitter)
+			 *  These would be empty paragraphs left behind by editors or simple paragraphs that would make it weird to display the ad before/after
 			 *  - Must not contain the following elements: ul, li, img
 			 *  Can mean they are lists. Regular Exp can be changed to add other undesired elements
 			 **/
@@ -810,7 +825,7 @@ class Wp_Dfp_Ads {
 
 			}
 
-		}// end if( is_single() )
+		} // end if( is_single() )
 
 		// $content is returned, unaltered if conditions not met, and with ad if proper placement and conditions allow it
 		return $content;
