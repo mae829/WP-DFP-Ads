@@ -525,15 +525,11 @@ class Wp_Dfp_Ads {
 			$ads	= array();
 
 			$args	= array(
-				'post_type'			=> 'advert',
-				'posts_per_page'	=> -1,
-				'fields'			=> 'ids',
-				'meta_query'		=> array(
-					array(
-						'key'	=> 'advert-id',
-						'value'	=> $slot
-					)
-				),
+				'post_type'					=> 'advert',
+				'posts_per_page'			=> -1,
+				'fields'					=> 'ids',
+				'meta_key'					=> 'advert-id',
+				'meta_value'				=> $slot
 				'no_found_rows'				=> true,
 				'update_post_meta_cache'	=> false,
 				'ignore_sticky_posts'		=> true,
