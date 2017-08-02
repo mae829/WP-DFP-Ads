@@ -25,7 +25,7 @@ class Wp_Dfp_Ads {
 
 	public function __construct() {
 
-		// find out if lazy-load ads and prebid are on
+		// find out if lazy-load ads are on
 		$wp_dfp_ads_settings	= get_option( 'wp_dfp_ads_settings' );
 		self::$lazyload_status	= !empty( $wp_dfp_ads_settings['lazy-load'] ) ? true : false;
 
@@ -41,111 +41,89 @@ class Wp_Dfp_Ads {
 	public function generate_ad_slots() {
 		global $wpdb, $post;
 
-		$keys = $this->advert_meta;
-
-		// remove the 'advert-markup' value from $keys
-		unset( $keys[ array_search( 'advert-markup', $keys ) ] );
-
-		// implode the meta keys for the sql query
-		$keys = "'". implode( "', '", $keys ) ."'";
+		$ads	= array();
 
 		// check for the transient of the ads meta.
 		// this gets flushed every time an ad is saved by _generate_advert_slots()
 		// it is done in the GENERATE function because we need the proper name to delete the transient
 		// _save_advert_meta_box() does not have the required info to do so. but _generate_adver_slots() does
-		if ( false === $meta = get_transient( 'ads_meta' ) ) {
+		if ( false === $ads = get_transient( 'ads_meta' ) ) {
 
-			/**
-			 * Query the metadata for all published "advert" post types that don't have custom markup.
-			 */
-			$sql =
-				"SELECT pm.post_id, pm.meta_key, pm.meta_value, tt.taxonomy, t.slug ".
-				"FROM {$wpdb->postmeta} pm ".
-					"LEFT JOIN {$wpdb->posts} p ON p.ID = pm.post_id ".
-					"LEFT JOIN {$wpdb->term_relationships} tr ON tr.object_id = pm.post_id ".
-					"LEFT JOIN {$wpdb->term_taxonomy} tt ON tt.term_taxonomy_id = tr.term_taxonomy_id ".
-					"LEFT JOIN {$wpdb->terms} t ON t.term_id = tt.term_id ".
-				"WHERE p.post_type = 'advert' AND p.post_status = 'publish' ".
-					"AND pm.post_id NOT IN ( SELECT post_id FROM {$wpdb->postmeta} WHERE meta_key = 'advert-markup' AND meta_value != '' ) ".
-					"AND pm.meta_key IN ( {$keys} ) ".
-				"ORDER BY p.post_date DESC ";
+			$ads_meta_args	= array(
+				'post_type'			=> 'advert',
+				'posts_per_page'	=> -1,
+				'fields'			=> 'ids',
+				'meta_query'		=> array(
+					'relation'	=> 'OR',
+					array(
+						'key'		=> 'advert-markup',
+						'value'		=> '',
+					),
+					array(
+						'key'		=> 'advert-markup',
+						'compare'	=> 'NOT EXISTS'
+					)
+				),
+				'no_found_rows'				=> true,
+				'update_post_meta_cache'	=> false,
+				'ignore_sticky_posts'		=> true,
+			);
 
-			$meta = $wpdb->get_results( $sql );
+			$ads_meta_object	= new WP_Query( $ads_meta_args );
 
-			set_transient( 'ads_meta', $meta );
+			$the_taxonomies = array();
+
+			foreach ( $ads_meta_object->posts as $key => $ad_id ) {
+
+				$ads[$key]	= self::get_meta(
+					$ad_id,
+					array(
+						'advert-slot',
+						'advert-logic',
+						'advert-mapname',
+						'advert-breakpoints',
+						'advert-exclude-lazyload'
+					)
+				);
+
+				// Break up the advert-slot because it could be more than one
+				// and unset the original value
+				$ads[$key]['advert-slots']	= explode( ',', $ads[$key]['advert-slot']  );
+				unset( $ads[$key]['advert-slot'] );
+
+				// Change up the advert logic so it works in eval
+				$ads[$key]['advert-logic'] = !empty( $ads[$key]['advert-logic'] ) ? "return ( ". $ads[$key]['advert-logic'] ." ? true : false );" : '';
+
+				// Get our taxonomies and add them to the $ads array
+				$the_taxonomies	= wp_get_object_terms(
+					$ad_id,
+					array(
+						'advert-size'
+					)
+				);
+
+				foreach ( $the_taxonomies as $tax ) {
+
+					if ( $tax->taxonomy === 'advert-size' ) {
+
+						$ads[$key]['advert-sizes'][]	= $tax->name;
+
+					}
+
+				}
+
+			}
+
+			set_transient( 'ads_meta', $ads );
 			echo '<!-- wpdfpads-debug: ads_meta new query -->' ."\n\t\t";
 		} else {
 			echo '<!-- wpdfpads-debug: ads_meta from cache -->' ."\n\t\t";
 		}
 
 		// make sure we have ads before proceeding
-		if( !is_wp_error( $meta ) && !empty( $meta ) ) {
+		if ( !is_wp_error( $ads ) && !empty( $ads ) ) {
 
-			$ads = array();
 			$registered_slots = array();
-
-			/**
-			 * This block converts our SQL result into something usable.
-			 *
-			 * e.g.
-			 * array(
-			 *   'slot-name' => 'slot_970_250_top_728_90',
-			 *   'advert-logic' => '',
-			 *   'advert-sizes' => array( '970_250', '728_90' ),
-			 *   'advert-mapname' => 'mapName'
-			 *   'advert-breakpoints' => array( 'breakpoint' => '1200', 'adsize' => array( '970x250', '728x90' ) )
-			 * )
-			 */
-			foreach ( $meta as $value ) {
-
-				if ( 'advert-slot' === $value->meta_key && !isset( $ads[$value->post_id]['slot-name'] ) ) {
-
-					$ads[$value->post_id]['slots'] = explode( ', ', $value->meta_value );
-
-				} elseif ( 'advert-logic' === $value->meta_key && !isset( $ads[$value->post_id]['advert-logic'] ) ) {
-
-					// transform logic
-					if ( !empty( $value->meta_value ) ) {
-
-						$ads[$value->post_id]['advert-logic'] = "return ( {$value->meta_value} ? true : false );";
-
-					}
-
-				} elseif ( 'advert-exclude-lazyload' === $value->meta_key && !isset( $ads[$value->post_id]['advert-exclude-lazyload'] ) ) {
-
-					// set value
-					$ads[$value->post_id]['advert-exclude-lazyload'] = $value->meta_value;
-
-				} elseif ( 'advert-mapname' === $value->meta_key && !isset( $ads[$value->post_id]['advert-mapname'] ) ) {
-
-					// set value
-					$ads[$value->post_id]['advert-mapname'] = $value->meta_value;
-
-				} elseif ( 'advert-breakpoints' === $value->meta_key && !isset( $ads[$value->post_id]['advert-breakpoints'] ) ) {
-
-					// set value
-					$ads[$value->post_id]['advert-breakpoints'] = unserialize( $value->meta_value );
-
-				}
-
-				if ( 'advert-size' === $value->taxonomy ) {
-
-					// initialize array
-					if ( !isset( $ads[$value->post_id]['advert-sizes'] ) ) {
-						$ads[$value->post_id]['advert-sizes'] = array();
-					}
-
-					// convert WordPress slug to DFP slug
-					$slug = $this->_parse_slot_name( $value->slug );
-
-					// ignore duplicates
-					if ( !in_array( $slug, $ads[$value->post_id]['advert-sizes'] ) ) {
-						$ads[$value->post_id]['advert-sizes'][] = $slug;
-					}
-
-				}
-
-			}
 
 			/*
 			 * Set up and get all our slots, ad maps, etc to attach later to our actual HTML we will generate
@@ -164,7 +142,7 @@ class Wp_Dfp_Ads {
 			// loop through slots and generate DFP definitions
 			foreach ( $ads as $ad ) {
 
-				foreach ( $ad['slots'] as $i => $slot ) {
+				foreach ( $ad['advert-slots'] as $i => $slot ) {
 
 					if ( false === in_array( $slot, $placements ) ) {
 
@@ -184,7 +162,7 @@ class Wp_Dfp_Ads {
 						foreach ( $ad['advert-sizes'] as $key => $size ) {
 
 							// manipulate the ad size
-							$size		= str_replace( '_', ',', $size );
+							$size		= str_replace( 'x', ',', $size );
 							// wrap fluid size in single parenthesis, else wrap it in brackets
 							$size		= $size == 'fluid' ? '\'fluid\'' : "[$size]";
 
@@ -423,8 +401,6 @@ class Wp_Dfp_Ads {
 			$categories	= ( $post->post_parent == '0' ? get_the_category( $post->ID ) : get_the_category( $post->post_parent ) );
 
 			$keywords		= array();
-			$author			= false;
-			$partnerconnect	= false;
 
 			foreach ( $categories as $category ) {
 
@@ -441,26 +417,6 @@ class Wp_Dfp_Ads {
 							$keywords[] = $cat;
 
 							$suffix .= '/'. $category->slug;
-
-						}
-
-					}
-
-					// adding author to keywords for partner connect
-					if ( true === $author ) {
-
-						$author = get_the_author();
-
-						if ( $author != ',' && $author != '' ) {
-
-							$author = $this->_sanitize_term( $author );
-
-							if ( !empty( $author ) && !in_array( $author, $keywords ) ) {
-
-								$keywords[] = $author;
-								$suffix .= "/{$author}";
-
-							}
 
 						}
 
@@ -883,7 +839,7 @@ class Wp_Dfp_Ads {
 	 *
 	 * @return string Formatted keyword term.
 	 */
-	protected function _sanitize_term( $term = null ) {
+	public static function _sanitize_term( $term = null ) {
 
 		$term = str_replace( '_&amp;', '', $term );
 		$term = str_replace( '_&', '', $term );
