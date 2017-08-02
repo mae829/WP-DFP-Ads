@@ -2,14 +2,14 @@
 /**
  * Plugin Name: WP DFP Ads
  * Description: This plugin creates a whole system for running DFP ads
- * Version: 1.1
+ * Version: 1.2
  * Author: Mike Estrada, Alex Delgado
  */
 
 define( 'WP_DFP_ADS_DIR', dirname( __FILE__ ) );
 define( 'WP_DFP_ADS_URL', plugin_dir_url( __FILE__ ) );
 define( 'WP_DFP_ADS_PATH', plugin_dir_path( __FILE__ ) );
-define( 'WP_DFP_ADS_VERSION', '1.1' );
+define( 'WP_DFP_ADS_VERSION', '1.2' );
 
 class Wp_Dfp_Setup {
 
