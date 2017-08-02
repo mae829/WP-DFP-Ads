@@ -55,7 +55,6 @@ class Wp_Dfp_Admin {
 	 */
 	public function register_files( $hook ){
 
-
 		global $wp_dfp_ads_options_page;
 		global $post_type;
 
@@ -63,7 +62,7 @@ class Wp_Dfp_Admin {
 			return;
 
 		// queue main styles and scripts
-		wp_enqueue_style( 'wp-dfp-ads-styles-admin', WP_DFP_ADS_URL .'/css/metabox-ui.min.css', array(), WP_DFP_ADS_VERSION );
+		wp_enqueue_style( 'wp-dfp-ads-styles-admin', WP_DFP_ADS_URL .'css/metabox-ui.min.css', array(), WP_DFP_ADS_VERSION );
 
 	}
 
