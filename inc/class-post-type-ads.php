@@ -545,32 +545,32 @@ class Post_Type_Ads {
 	public function _register_advert_size_taxonomy() {
 
 		$labels = array(
-			'name'                       => _x( 'Ad Sizes', 'taxonomy general name' ),
-			'singular_name'              => _x( 'Ad Size', 'taxonomy singular name' ),
-			'search_items'               => __( 'Search Ad Sizes' ),
-			'popular_items'              => __( 'Popular Ad Sizes' ),
-			'all_items'                  => __( 'All Ad Sizes' ),
-			'parent_item'                => null,
-			'parent_item_colon'          => null,
-			'edit_item'                  => __( 'Edit Ad Size' ),
-			'update_item'                => __( 'Update Ad Size' ),
-			'add_new_item'               => __( 'Add New Ad Size' ),
-			'new_item_name'              => __( 'New Ad Size Name' ),
-			'separate_items_with_commas' => __( 'Separate ad sizes with commas' ),
-			'add_or_remove_items'        => __( 'Add or remove ad sizes' ),
-			'choose_from_most_used'      => __( 'Choose from the most used ad sizes' ),
-			'not_found'                  => __( 'No ad sizes found.' ),
-			'menu_name'                  => __( 'Ad Sizes' ),
+			'name'							=> _x( 'Sizes', 'taxonomy general name' ),
+			'singular_name'					=> _x( 'Size', 'taxonomy singular name' ),
+			'search_items'					=> __( 'Search Sizes' ),
+			'popular_items'					=> __( 'Popular Sizes' ),
+			'all_items'						=> __( 'All Sizes' ),
+			'parent_item'					=> null,
+			'parent_item_colon'				=> null,
+			'edit_item'						=> __( 'Edit Size' ),
+			'update_item'					=> __( 'Update Size' ),
+			'add_new_item'					=> __( 'Add New Size' ),
+			'new_item_name'					=> __( 'New Size Name' ),
+			'separate_items_with_commas'	=> __( 'Separate sizes with commas' ),
+			'add_or_remove_items'			=> __( 'Add or remove sizes' ),
+			'choose_from_most_used'			=> __( 'Choose from the most used sizes' ),
+			'not_found'						=> __( 'No sizes found.' ),
+			'menu_name'						=> __( 'Sizes' ),
 		);
 
 		$args = array(
-			'hierarchical'          => true,
-			'labels'                => $labels,
-			'show_ui'               => true,
-			'show_admin_column'     => true,
-			'public'                => false,
-			'rewrite'               => false,
-			'show_tagcloud'			=> false
+			'hierarchical'		=> true,
+			'labels'			=> $labels,
+			'show_ui'			=> true,
+			'show_admin_column'	=> true,
+			'public'			=> false,
+			'rewrite'			=> false,
+			'show_tagcloud'		=> false
 		);
 
 		register_taxonomy( 'advert-size', 'advert', $args );
