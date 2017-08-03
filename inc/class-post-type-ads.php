@@ -570,6 +570,7 @@ class Post_Type_Ads {
 			'show_admin_column'     => true,
 			'public'                => false,
 			'rewrite'               => false,
+			'show_tagcloud'			=> false
 		);
 
 		register_taxonomy( 'advert-size', 'advert', $args );
