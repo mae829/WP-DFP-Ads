@@ -11,13 +11,13 @@ if ( ! defined( 'WP_DFP_ADS_DIR' ) ) {
 class Wp_Dfp_Ads {
 
 	var $advert_meta = array(
-		'advert-slot',
-		'advert-logic',
-		'advert-markup',
-		'advert-exclude-lazyload',
-		'advert-exclude-refresh',
-		'advert-mapname',
-		'advert-breakpoints'
+		'_advert-slot',
+		'_advert-logic',
+		'_advert-markup',
+		'_advert-exclude-lazyload',
+		'_advert-exclude-refresh',
+		'_advert-mapname',
+		'_advert-breakpoints'
 	);
 
 	static $instance = false;
@@ -63,11 +63,11 @@ class Wp_Dfp_Ads {
 				'meta_query'		=> array(
 					'relation'	=> 'OR',
 					array(
-						'key'		=> 'advert-markup',
+						'key'		=> '_advert-markup',
 						'value'		=> '',
 					),
 					array(
-						'key'		=> 'advert-markup',
+						'key'		=> '_advert-markup',
 						'compare'	=> 'NOT EXISTS'
 					)
 				),
@@ -85,22 +85,22 @@ class Wp_Dfp_Ads {
 				$ads[$key]	= self::_get_meta(
 					$ad_id,
 					array(
-						'advert-slot',
-						'advert-logic',
-						'advert-mapname',
-						'advert-breakpoints',
-						'advert-exclude-lazyload',
-						'advert-exclude-refresh'
+						'_advert-slot',
+						'_advert-logic',
+						'_advert-mapname',
+						'_advert-breakpoints',
+						'_advert-exclude-lazyload',
+						'_advert-exclude-refresh'
 					)
 				);
 
 				// Break up the advert-slot because it could be more than one
 				// and unset the original value
-				$ads[$key]['advert-slots']	= explode( ',', $ads[$key]['advert-slot']  );
-				unset( $ads[$key]['advert-slot'] );
+				$ads[$key]['advert-slots']	= explode( ',', $ads[$key]['_advert-slot']  );
+				unset( $ads[$key]['_advert-slot'] );
 
 				// Change up the advert logic so it works in eval
-				$ads[$key]['advert-logic'] = !empty( $ads[$key]['advert-logic'] ) ? "return ( ". $ads[$key]['advert-logic'] ." ? true : false );" : '';
+				$ads[$key]['_advert-logic'] = !empty( $ads[$key]['_advert-logic'] ) ? "return ( ". $ads[$key]['_advert-logic'] ." ? true : false );" : '';
 
 				// Get our taxonomies and add them to the $ads array
 				$the_taxonomies	= wp_get_object_terms(
@@ -155,7 +155,7 @@ class Wp_Dfp_Ads {
 					if ( false === in_array( $slot, $placements ) ) {
 
 						// evaluate advert logic
-						if ( !empty( $ad['advert-logic'] ) && false === eval( $ad['advert-logic'] ) ) {
+						if ( !empty( $ad['_advert-logic'] ) && false === eval( $ad['_advert-logic'] ) ) {
 							continue;
 						}
 
@@ -189,10 +189,10 @@ class Wp_Dfp_Ads {
 						$slot_markup	= "%s = googletag.defineSlot( '%s', %s, '%s' )";
 
 						// attach the size map name if it exists in metadata
-						// and attach the defined map to $ad_maps to print later
-						if ( !empty( $ad['advert-mapname'] ) && !empty( $ad['advert-breakpoints'] ) ) {
+						// and attach the defined map to $ad_map to print later
+						if ( !empty( $ad['_advert-mapname'] ) && !empty( $ad['_advert-breakpoints'] ) ) {
 
-							$slot_markup	.= ".defineSizeMapping( {$ad['advert-mapname']} )";
+							$slot_markup	.= ".defineSizeMapping( {$ad['_advert-mapname']} )";
 
 							$ad_maps		.= $this->generate_ad_maps( $ad );
 
@@ -201,13 +201,13 @@ class Wp_Dfp_Ads {
 						$slot_markup	.= ".addService( googletag.pubads() )";
 
 						// make sure the ad collapses if it is not part of the lazy-load set up, in case nothing gets returned
-						$slot_markup	.= self::$lazyload_status && !empty( $ad['advert-exclude-lazyload'] ) ? ".setCollapseEmptyDiv(true);\n\t\t\t\t" : ";\n\t\t\t\t";
+						$slot_markup	.= self::$lazyload_status && !empty( $ad['_advert-exclude-lazyload'] ) ? ".setCollapseEmptyDiv(true);\n\t\t\t\t" : ";\n\t\t\t\t";
 
 						// add the slot to our lazyload object for later use if the feature is turned on AND not excluded
-						$slot_markup	.= self::$lazyload_status && empty( $ad['advert-exclude-lazyload'] ) ? "lazyload_slots['". $slot ."'] = ". $slot .";\n\t\t\t\t" : '';
+						$slot_markup	.= self::$lazyload_status && empty( $ad['_advert-exclude-lazyload'] ) ? "lazyload_slots['". $slot ."'] = ". $slot .";\n\t\t\t\t" : '';
 
 						// add the slot to our refresh object for later use if the feature is turned on AND not excluded
-						$slot_markup	.= self::$refresh_status && empty( $ad['advert-exclude-refresh'] ) ? "refresh_slots['". $slot ."'] = ". $slot .";\n\t\t\t\t" : '';
+						$slot_markup	.= self::$refresh_status && empty( $ad['_advert-exclude-refresh'] ) ? "refresh_slots['". $slot ."'] = ". $slot .";\n\t\t\t\t" : '';
 
 						$div = str_replace( 'slot_', 'div_', $slot );
 
@@ -501,14 +501,14 @@ class Wp_Dfp_Ads {
 		}
 
 		// making ABSOLUTELY sure this wasn't executed without the right data
-		if ( empty( $ad['advert-mapname'] ) || empty( $ad['advert-breakpoints'] ) ) {
+		if ( empty( $ad['_advert-mapname'] ) || empty( $ad['_advert-breakpoints'] ) ) {
 			return;
 		}
 
-		$ad_map	= "var {$ad['advert-mapname']} = googletag.sizeMapping()";
+		$ad_map	= "var {$ad['_advert-mapname']} = googletag.sizeMapping()";
 
 		// attach each breakpoint to the map
-		foreach ( $ad['advert-breakpoints'] as $ad_breakpoint ) {
+		foreach ( $ad['_advert-breakpoints'] as $ad_breakpoint ) {
 
 			$breakpoint					= $ad_breakpoint['breakpoint'] != '-' ? $ad_breakpoint['breakpoint'] : '0';
 			$ad_breakpoint['adsize']	= $ad_breakpoint['adsize'] != '' ? $ad_breakpoint['adsize'] : array( '0x0' );
@@ -573,7 +573,7 @@ class Wp_Dfp_Ads {
 				'post_type'					=> 'advert',
 				'posts_per_page'			=> -1,
 				'fields'					=> 'ids',
-				'meta_key'					=> 'advert-id',
+				'meta_key'					=> '_advert-id',
 				'meta_value'				=> $slot,
 				'no_found_rows'				=> true,
 				'update_post_meta_cache'	=> false,
@@ -587,11 +587,11 @@ class Wp_Dfp_Ads {
 				$ads[]	= self::_get_meta(
 					$ad_id,
 					array(
-						'advert-slot',
-						'advert-logic',
-						'advert-markup',
-						'advert-exclude-lazyload',
-						'advert-exclude-refresh'
+						'_advert-slot',
+						'_advert-logic',
+						'_advert-markup',
+						'_advert-exclude-lazyload',
+						'_advert-exclude-refresh'
 					),
 					'post',
 					OBJECT
@@ -611,9 +611,9 @@ class Wp_Dfp_Ads {
 
 			foreach ( $ads as $ad ) {
 
-				if ( !empty( $ad->{'advert-logic'} ) ) {
+				if ( !empty( $ad->{'_advert-logic'} ) ) {
 
-					$logic = $ad->{'advert-logic'};
+					$logic = $ad->{'_advert-logic'};
 					$logic = "return ( {$logic} ? true : false );";
 
 					if ( false === eval( $logic ) ) {
@@ -622,15 +622,15 @@ class Wp_Dfp_Ads {
 
 				}
 
-				if ( !empty( $ad->{'advert-markup'} ) ) {
+				if ( !empty( $ad->{'_advert-markup'} ) ) {
 
-					$placements[] = $ad->{'advert-markup'};
+					$placements[] = $ad->{'_advert-markup'};
 
 				} else {
 
 					$pattern = str_replace( '-', '_', $pattern );
 
-					preg_match_all( "/(([a-z0-9_]+)($pattern)([a-z0-9_]+)?)/", $ad->{'advert-slot'}, $matches );
+					preg_match_all( "/(([a-z0-9_]+)($pattern)([a-z0-9_]+)?)/", $ad->{'_advert-slot'}, $matches );
 
 					if ( !empty( $matches[0] ) ) {
 
@@ -642,7 +642,7 @@ class Wp_Dfp_Ads {
 								$html .= '<script>';
 									$html .= 'googletag.cmd.push(function() { ';
 										$html .= 'googletag.display( "'. $div .'" ); ';
-										$html .= ( self::$lazyload_status && !empty( $ad->{'advert-exclude-lazyload'} ) ) ? 'googletag.pubads().refresh(['. $match .']);' : '';
+										$html .= ( self::$lazyload_status && !empty( $ad->{'_advert-exclude-lazyload'} ) ) ? 'googletag.pubads().refresh(['. $match .']);' : '';
 									$html .= '});';
 								$html .= '</script>';
 							$html .= '</div>';
@@ -829,7 +829,7 @@ class Wp_Dfp_Ads {
 				wp_enqueue_script( 'jquery', 'https://code.jquery.com/jquery-2.2.4.min.js', array(), '2.2.4', true );
 			}
 
-			wp_enqueue_script( 'wp-dfp-ads-lazyload', WP_DFP_ADS_URL .'js/lazy-load.min.js', array('jquery'), WP_DFP_ADS_VERSION, true );
+			wp_enqueue_script( 'wpdfpads-lazyload', WP_DFP_ADS_URL .'js/lazy-load.min.js', array('jquery'), WP_DFP_ADS_VERSION, true );
 		}
 
 		if ( self::$refresh_status ) {
@@ -838,7 +838,7 @@ class Wp_Dfp_Ads {
 				wp_enqueue_script( 'jquery', 'https://code.jquery.com/jquery-2.2.4.min.js', array(), '2.2.4', true );
 			}
 
-			wp_enqueue_script( 'wp-dfp-ads-refresh', WP_DFP_ADS_URL .'js/refresh.min.js', array('jquery'), WP_DFP_ADS_VERSION, true );
+			wp_enqueue_script( 'wpdfpads-refresh', WP_DFP_ADS_URL .'js/refresh.min.js', array('jquery'), WP_DFP_ADS_VERSION, true );
 		}
 
 	}

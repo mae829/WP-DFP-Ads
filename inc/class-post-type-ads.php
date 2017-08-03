@@ -7,14 +7,14 @@ if ( ! defined( 'WP_DFP_ADS_DIR' ) ) {
 class Post_Type_Ads {
 
 	var $advert_meta = array(
-		'advert-id',
-		'advert-slot',
-		'advert-logic',
-		'advert-markup',
-		'advert-exclude-lazyload',
-		'advert-exclude-refresh',
-		'advert-mapname',
-		'advert-breakpoints'
+		'_advert-id',
+		'_advert-slot',
+		'_advert-logic',
+		'_advert-markup',
+		'_advert-exclude-lazyload',
+		'_advert-exclude-refresh',
+		'_advert-mapname',
+		'_advert-breakpoints'
 	);
 
 	var $admin_notice_key = 'ad_sanitized';
@@ -49,14 +49,14 @@ class Post_Type_Ads {
 
 		unset( $columns['date'] );
 
-		$columns['advert-id']		= 'ID';
-		$columns['advert-logic']	= 'Logic';
+		$columns['_advert-id']		= 'ID';
+		$columns['_advert-logic']	= 'Logic';
 
 		if ( $lazyload_status )
-			$columns['advert-exclude-lazyload']	= 'Lazy Load';
+			$columns['_advert-exclude-lazyload']	= 'Lazy Load';
 
 		if ( $refresh_status )
-			$columns['advert-exclude-refresh']		= 'Ad Refresh';
+			$columns['_advert-exclude-refresh']		= 'Ad Refresh';
 
 		return $columns;
 	}
@@ -71,17 +71,17 @@ class Post_Type_Ads {
 	public function set_advert_column_values( $name = null ) {
 		global $post;
 
-		if ( 'advert-logic' === $name )
-			echo get_post_meta( $post->ID, 'advert-logic', true );
+		if ( '_advert-logic' === $name )
+			echo get_post_meta( $post->ID, '_advert-logic', true );
 
-		if ( 'advert-id' === $name )
-			echo get_post_meta( $post->ID, 'advert-id', true );
+		if ( '_advert-id' === $name )
+			echo get_post_meta( $post->ID, '_advert-id', true );
 
-		if ( 'advert-exclude-lazyload' === $name )
-			echo get_post_meta( $post->ID, 'advert-exclude-lazyload', true ) ? 'excluded': '';
+		if ( '_advert-exclude-lazyload' === $name )
+			echo get_post_meta( $post->ID, '_advert-exclude-lazyload', true ) ? 'excluded': '';
 
-		if ( 'advert-exclude-refresh' === $name )
-			echo get_post_meta( $post->ID, 'advert-exclude-refresh', true ) ? 'excluded': '';
+		if ( '_advert-exclude-refresh' === $name )
+			echo get_post_meta( $post->ID, '_advert-exclude-refresh', true ) ? 'excluded': '';
 	}
 
 	/**
@@ -95,7 +95,7 @@ class Post_Type_Ads {
 	 */
 	public function set_sortable_advert_columns( $columns = array() ) {
 
-		$columns['advert-id']					= 'advert-id';
+		$columns['_advert-id']					= '_advert-id';
 		$columns['taxonomy-advert-size']		= 'taxonomy-advert-size';
 
 		return $columns;
@@ -119,7 +119,7 @@ class Post_Type_Ads {
 			$orderby	= ( !empty( $_REQUEST['orderby'] ) ? $_REQUEST['orderby'] : '' );
 
 			$custom_columns = array(
-				'advert-id' => array( 'orderby' => 'meta_value', 'meta_key' => 'advert-id' )
+				'_advert-id' => array( 'orderby' => 'meta_value', 'meta_key' => '_advert-id' )
 			);
 
 			if ( array_key_exists( $orderby, $custom_columns ) ) {
@@ -200,6 +200,7 @@ class Post_Type_Ads {
 			'taxonomy'		=> 'advert-size',
 			'hide_empty'	=> false
 		) );
+
 		foreach ( $ad_sizes_objects	as $ad_size ) {
 			$ad_sizes[$ad_size->name]	= $ad_size->name;
 		}
@@ -218,7 +219,7 @@ class Post_Type_Ads {
 
 		// Initiate metabox
 		$responsive_sizes_box	= new_cmb2_box( array(
-			'id'			=> 'responsive_ad_sizes',
+			'id'			=> '_responsive_ad_sizes',
 			'title'			=> __( 'Responsive Ad Sizes', 'wp_dfp_ads' ),
 			'object_types'	=> array( 'advert' ),
 			'context'		=> 'normal',
@@ -227,14 +228,14 @@ class Post_Type_Ads {
 		) );
 
 		$responsive_sizes_box->add_field( array(
-			'id'		=> 'advert-mapname',
+			'id'		=> '_advert-mapname',
 			'name'		=> __( 'SizeMap Name', 'wp_dfp_ads' ),
 			'desc'		=> __( 'Please fill out with a unique name. If left blank, no responsive ad map will be generated but the fields below will be saved for future reference.', 'wp_dfp_ads' ),
 			'type'		=> 'text',
 		) );
 
 		$responsive_size_group = $responsive_sizes_box->add_field( array(
-			'id'		=> 'advert-breakpoints',
+			'id'		=> '_advert-breakpoints',
 			'type'		=> 'group',
 			'desc'		=> __( 'Add a size per desired breakpoint. This will override the regular Ad Sizes in the the Taxonomy so clear out the SizeMap Name to use Taxonomy Ad Sizes.', 'wp_dfp_ads' ),
 			'options'	=> array(
@@ -275,12 +276,12 @@ class Post_Type_Ads {
 		// get post meta values if they've already been set
 		$post_meta = $this->_get_post_meta( $post->ID, $this->advert_meta );
 
-		$advert_id	= ( !empty( $post_meta['advert-id'] ) ? $post_meta['advert-id']->meta_value : '' );
-		$slot		= ( !empty( $post_meta['advert-slot'] ) ? $post_meta['advert-slot']->meta_value : '' );
-		$logic		= ( !empty( $post_meta['advert-logic'] ) ? $post_meta['advert-logic']->meta_value : '' );
-		$markup		= ( !empty( $post_meta['advert-markup'] ) ? $post_meta['advert-markup']->meta_value : '' );
-		$lazyload	= ( !empty( $post_meta['advert-exclude-lazyload'] ) ? $post_meta['advert-exclude-lazyload']->meta_value : '' );
-		$refresh	= ( !empty( $post_meta['advert-exclude-refresh'] ) ? $post_meta['advert-exclude-refresh']->meta_value : '' );
+		$advert_id	= ( !empty( $post_meta['_advert-id'] ) ? $post_meta['_advert-id']->meta_value : '' );
+		$slot		= ( !empty( $post_meta['_advert-slot'] ) ? $post_meta['_advert-slot']->meta_value : '' );
+		$logic		= ( !empty( $post_meta['_advert-logic'] ) ? $post_meta['_advert-logic']->meta_value : '' );
+		$markup		= ( !empty( $post_meta['_advert-markup'] ) ? $post_meta['_advert-markup']->meta_value : '' );
+		$lazyload	= ( !empty( $post_meta['_advert-exclude-lazyload'] ) ? $post_meta['_advert-exclude-lazyload']->meta_value : '' );
+		$refresh	= ( !empty( $post_meta['_advert-exclude-refresh'] ) ? $post_meta['_advert-exclude-refresh']->meta_value : '' );
 
 		wp_nonce_field( 'wp_dfp_ads_meta_box','wp_dfp_ads_meta_box_nonce' );
 
@@ -310,21 +311,6 @@ class Post_Type_Ads {
 		// check the user's permissions.
 		if ( !current_user_can( 'edit_post', $post_ID ) )
 			return;
-
-		write_to_log($_POST);
-		die();
-
-		// check if we are deleting an advert meta
-		if ( !empty( $_POST['deleteadvertmeta'] ) ) {
-			$this->_delete_advert_keyvalue( $post_ID );
-			return;
-		}
-
-		// check if we are adding an advert meta
-		if ( !empty( $_POST['addkeyvalue'] ) ) {
-			$this->_add_advert_keyvalue( $post_ID );
-			return;
-		}
 
 		$save_method = "_save_{$_POST['post_type']}_meta_box";
 
@@ -473,11 +459,11 @@ class Post_Type_Ads {
 
 			if ( isset( $_POST[$name] ) ) {
 
-				if ( 'advert_slot' === $name ) {
+				if ( '_advert_slot' === $name ) {
 
 					$meta_value = $this->_generate_advert_slots( $post_ID );
 
-				} elseif ( 'advert_logic' === $name ) {
+				} elseif ( '_advert_logic' === $name ) {
 
 					/**
 					 * NEED THIS FIXED:
@@ -503,7 +489,7 @@ class Post_Type_Ads {
 						add_filter( 'redirect_post_location', array( $this, 'add_notice_query_var' ), 99 );
 					}
 
-				} elseif ( 'advert_markup' === $name ) {
+				} elseif ( '_advert_markup' === $name ) {
 
 					/**
 					 * This function makes sure that only the allowed HTML
@@ -635,7 +621,7 @@ class Post_Type_Ads {
 
 		$slots = array();
 
-		$advert_IDs	= get_post_meta( $post_ID, 'advert-id' );
+		$advert_IDs	= get_post_meta( $post_ID, '_advert-id' );
 
 		$sizes = wp_get_object_terms(
 			$post_ID,
