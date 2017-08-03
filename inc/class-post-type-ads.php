@@ -397,6 +397,7 @@ class Post_Type_Ads {
 
 		add_filter( 'pre_get_posts', array( $this, 'sort_custom_fields' ) );
 		add_filter( 'manage_edit-advert_sortable_columns', array( $this, 'set_sortable_advert_columns' ) );
+		add_filter( 'posts_clauses', array( $this, 'orderby_taxonomy' ), 10, 2 );
 
 	}
 
