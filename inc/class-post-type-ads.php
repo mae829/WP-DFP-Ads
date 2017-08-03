@@ -43,9 +43,15 @@ class Post_Type_Ads {
 	 */
 	public function add_advert_columns( $columns = array() ) {
 
+		$lazyload_status	= wp_dfp_ads_get_option( 'lazy-load' ) ? true : false;
+
 		unset( $columns['date'] );
 
-		$columns['advert-logic'] = 'Ad Logic';
+		$columns['advert-id']		= 'ID';
+		$columns['advert-logic']	= 'Logic';
+
+		if ( $lazyload_status )
+			$columns['advert-exclude-lazyload']	= 'Lazy Load';
 
 		return $columns;
 	}
@@ -62,6 +68,13 @@ class Post_Type_Ads {
 
 		if ( 'advert-logic' === $name )
 			echo get_post_meta( $post->ID, 'advert-logic', true );
+
+		if ( 'advert-id' === $name )
+			echo get_post_meta( $post->ID, 'advert-id', true );
+
+		if ( 'advert-exclude-lazyload' === $name )
+			echo get_post_meta( $post->ID, 'advert-exclude-lazyload', true ) ? 'excluded': '';
+
 	}
 
 	/**
@@ -75,6 +88,7 @@ class Post_Type_Ads {
 	 */
 	public function set_sortable_advert_columns( $columns = array() ) {
 
+		$columns['advert-id']					= 'advert-id';
 		$columns['taxonomy-advert-size']		= 'taxonomy-advert-size';
 		// $columns['advert-logic']				= 'advert-logic';
 
@@ -99,7 +113,7 @@ class Post_Type_Ads {
 			$orderby	= ( !empty( $_REQUEST['orderby'] ) ? $_REQUEST['orderby'] : '' );
 
 			$custom_columns = array(
-				'advert-logic' => array( 'orderby' => 'meta_value', 'meta_key' => 'advert-logic' )
+				'advert-id' => array( 'orderby' => 'meta_value', 'meta_key' => 'advert-id' ),
 			);
 
 			if ( array_key_exists( $orderby, $custom_columns ) ) {
@@ -114,6 +128,37 @@ class Post_Type_Ads {
 				}
 			}
 		}
+	}
+
+	/**
+	 * Order admin column by taxonomy
+	 *
+	 * credit to: http://ieg.wnet.org/2015/11/a-guide-to-custom-wordpress-admin-columns/
+	 *
+	 * @param  array	$clauses	All clauses for the WP query
+	 * @param  object	$wp_query	Main WP Query object
+	 * @return array				Original or altered clauses
+	 */
+	public function orderby_taxonomy( $clauses, $wp_query ) {
+
+		if ( !is_admin() ) {
+			return;
+		}
+
+		global $wpdb;
+
+		if ( isset( $wp_query->query['orderby'] ) && (strpos($wp_query->query['orderby'], 'taxonomy-') !== FALSE) ) {
+			$tax = preg_replace("/^taxonomy-/", "", $wp_query->query['orderby']);
+			$clauses['join'] .= "LEFT OUTER JOIN {$wpdb->term_relationships} ON {$wpdb->posts}.ID={$wpdb->term_relationships}.object_id
+				LEFT OUTER JOIN {$wpdb->term_taxonomy} USING (term_taxonomy_id)
+				LEFT OUTER JOIN {$wpdb->terms} USING (term_id)";
+			$clauses['where'] .= " AND (taxonomy = '" . $tax . "' OR taxonomy IS NULL)";
+			$clauses['groupby'] = "object_id";
+			$clauses['orderby']  = "GROUP_CONCAT({$wpdb->terms}.name ORDER BY name ASC) ";
+			$clauses['orderby'] .= ( 'ASC' == strtoupper( $wp_query->get('order') ) ) ? 'ASC' : 'DESC';
+	 	}
+
+		return $clauses;
 	}
 
 	/**
@@ -225,6 +270,7 @@ class Post_Type_Ads {
 		wp_nonce_field( 'wp_dfp_ads_meta_box','wp_dfp_ads_meta_box_nonce' );
 
 		require WP_DFP_ADS_DIR .'/inc/meta-boxes/advert-meta-box.php';
+
 	}
 
 	/**
@@ -306,7 +352,7 @@ class Post_Type_Ads {
 	 */
 	public static function singleton() {
 
-		if ( ! self::$instance )
+		if ( !self::$instance )
 			self::$instance = new self;
 
 		return self::$instance;
@@ -333,8 +379,9 @@ class Post_Type_Ads {
 		// cmb2 dependent hooks
 		add_action( 'cmb2_admin_init', array( $this, 'add_responsive_sizes_metabox' ) );
 
-		// add_filter( 'pre_get_posts', array( $this, 'sort_custom_fields' ) );
+		add_filter( 'pre_get_posts', array( $this, 'sort_custom_fields' ) );
 		add_filter( 'manage_edit-advert_sortable_columns', array( $this, 'set_sortable_advert_columns' ) );
+		add_filter( 'posts_clauses', array( $this, 'orderby_taxonomy' ), 10, 2 );
 
 	}
 
