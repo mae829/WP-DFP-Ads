@@ -15,6 +15,7 @@ class Wp_Dfp_Ads {
 		'advert-logic',
 		'advert-markup',
 		'advert-exclude-lazyload',
+		'advert-exclude-refresh',
 		'advert-mapname',
 		'advert-breakpoints'
 	);
@@ -23,11 +24,17 @@ class Wp_Dfp_Ads {
 
 	public static $lazyload_status = false;
 
+	public static $refresh_status = false;
+
+	public static $refresh_time;
+
 	public function __construct() {
 
-		// find out if lazy-load ads are on
+		// Set up our initial options
 		$wp_dfp_ads_settings	= get_option( 'wp_dfp_ads_settings' );
 		self::$lazyload_status	= !empty( $wp_dfp_ads_settings['lazy-load'] ) ? true : false;
+		self::$refresh_status	= !empty( $wp_dfp_ads_settings['refresh'] ) ? true : false;
+		self::$refresh_time		= !empty( $wp_dfp_ads_settings['refresh-time'] ) ? $wp_dfp_ads_settings['refresh-time'] * 1000 : 30000;
 
 		$this->_add_actions();
 	}
@@ -75,14 +82,15 @@ class Wp_Dfp_Ads {
 
 			foreach ( $ads_meta_object->posts as $key => $ad_id ) {
 
-				$ads[$key]	= self::get_meta(
+				$ads[$key]	= self::_get_meta(
 					$ad_id,
 					array(
 						'advert-slot',
 						'advert-logic',
 						'advert-mapname',
 						'advert-breakpoints',
-						'advert-exclude-lazyload'
+						'advert-exclude-lazyload',
+						'advert-exclude-refresh'
 					)
 				);
 
@@ -125,7 +133,7 @@ class Wp_Dfp_Ads {
 
 			$registered_slots = array();
 
-			/*
+			/**
 			 * Set up and get all our slots, ad maps, etc to attach later to our actual HTML we will generate
 			 */
 			$placements			= array();
@@ -186,35 +194,7 @@ class Wp_Dfp_Ads {
 
 							$slot_markup	.= ".defineSizeMapping( {$ad['advert-mapname']} )";
 
-							$ad_maps	.= "var {$ad['advert-mapname']} = googletag.sizeMapping()";
-
-							// attach each breakpoint to the map
-							foreach ( $ad['advert-breakpoints'] as $ad_breakpoint ) {
-
-								$breakpoint					= $ad_breakpoint['breakpoint'] != '-' ? $ad_breakpoint['breakpoint'] : '0';
-								$ad_breakpoint['adsize']	= $ad_breakpoint['adsize'] != '' ? $ad_breakpoint['adsize'] : array( '0x0' );
-
-								foreach ( $ad_breakpoint['adsize'] as $key => $single_breakpoint ) {
-
-									if ( $single_breakpoint == 'fluid' ) {
-										$ad_breakpoint['adsize'][$key]	= '\'fluid\'';
-									} else {
-										$ad_breakpoint['adsize'][$key]	= "[$single_breakpoint]";
-									}
-
-								}
-
-								rsort( $ad_breakpoint['adsize'] );
-
-								$breakpoint_sizes	= ($ad_breakpoint['adsize'][0] != '[0x0]') ? implode( ',', $ad_breakpoint['adsize'] ) : '[]';
-								$breakpoint_sizes	= count( $ad_breakpoint['adsize'] ) > 1 ? '[' . $breakpoint_sizes . ']' : $breakpoint_sizes;
-								$breakpoint_sizes	= str_replace( 'x', ',', $breakpoint_sizes );
-
-								$ad_maps			.= ".addSize([$breakpoint, 0], $breakpoint_sizes)";
-
-							}
-
-							$ad_maps	.= ".build();\n\t\t\t\t";
+							$ad_maps		.= $this->generate_ad_maps( $ad );
 
 						}
 
@@ -223,7 +203,11 @@ class Wp_Dfp_Ads {
 						// make sure the ad collapses if it is not part of the lazy-load set up, in case nothing gets returned
 						$slot_markup	.= self::$lazyload_status && !empty( $ad['advert-exclude-lazyload'] ) ? ".setCollapseEmptyDiv(true);\n\t\t\t\t" : ";\n\t\t\t\t";
 
-						$slot_markup	.= self::$lazyload_status && empty( $ad['advert-exclude-lazyload'] ) ? "refresh_slots['". $slot ."'] = ". $slot .";\n\t\t\t\t" : '';
+						// add the slot to our lazyload object for later use if the feature is turned on AND not excluded
+						$slot_markup	.= self::$lazyload_status && empty( $ad['advert-exclude-lazyload'] ) ? "lazyload_slots['". $slot ."'] = ". $slot .";\n\t\t\t\t" : '';
+
+						// add the slot to our refresh object for later use if the feature is turned on AND not excluded
+						$slot_markup	.= self::$refresh_status && empty( $ad['advert-exclude-refresh'] ) ? "refresh_slots['". $slot ."'] = ". $slot .";\n\t\t\t\t" : '';
 
 						$div = str_replace( 'slot_', 'div_', $slot );
 
@@ -250,7 +234,12 @@ class Wp_Dfp_Ads {
 			$html = '<script>' ."\n\t\t\t";
 
 				if ( self::$lazyload_status ) {
-					$html .= 'var refresh_slots = [];' ."\n\t\t\t";
+					$html .= 'var lazyload_slots = {};' ."\n\t\t\t";
+				}
+
+				if ( self::$refresh_status ) {
+					$html .= 'var refresh_slots = {};' ."\n\t\t\t";
+					$html .= 'var refresh_time = '. self::$refresh_time  .';'."\n\t\t\t";
 				}
 
 				// define googletag before anything
@@ -270,19 +259,20 @@ class Wp_Dfp_Ads {
 				$html .= '})();' ."\n\t\t\t";
 
 				$html .= 'googletag.cmd.push( function() {'  ."\n\t\t\t\t";
-					$html .= ( $ad_maps != ' ') ? $ad_maps ."\n\t\t\t\t" : '';
+					$html .= ( trim( $ad_maps ) != '') ? $ad_maps ."\n\t\t\t\t" : '';
 					$html .= $slot_definitions ."\n\t\t\t\t";
 
 					// add event listener to remove any ad_fallback
-					$html .= 'googletag.pubads().addEventListener(\'slotRenderEnded\', function(event) {' ."\n\t\t\t\t\t";
-						$html .= 'var slotId  = event.slot.getSlotId().getDomId();' ."\n\t\t\t\t\t";
-						$html .= 'var slot    = document.getElementById(slotId);' ."\n\t\t\t\t\t";
+					$html .= 'googletag.pubads().addEventListener( \'slotRenderEnded\', function( event ) {' ."\n\t\t\t\t\t";
+						$html .= 'var slotId  = event.slot.getSlotElementId();' ."\n\t\t\t\t\t";
+						$html .= 'var slot    = document.getElementById( slotId );' ."\n\t\t\t\t\t";
 						$html .= 'if ( slot !== null && !event.isEmpty ) {' ."\n\t\t\t\t\t\t";
 							// add "advert-loaded" to div
-							$html .= 'slot.className += " advert-loaded";';
+							// $html .= 'slot.className += " advert-loaded";'; (leaving this in here because it works for older IE versions but repeats when doing ad refresh)
+							$html .= 'slot.classList.add( \'advert-loaded\' );' ."\n\t\t\t\t\t\t";
 							// hide any fallback content within the parent div of the ad
 							$html .= 'var parentDiv  = slot.parentNode;' ."\n\t\t\t\t\t\t";
-							$html .= 'var fallbacks  = parentDiv.getElementsByClassName(\'ad_fallback\');' ."\n\t\t\t\t\t\t";
+							$html .= 'var fallbacks  = parentDiv.getElementsByClassName( \'ad_fallback\' );' ."\n\t\t\t\t\t\t";
 							$html .= 'for ( var i = 0; i < fallbacks.length; i++ ) {' ."\n\t\t\t\t\t\t\t";
 								$html .= 'fallbacks[i].style.display = \'none\';' ."\n\t\t\t\t\t\t";
 							$html .= '}' ."\n\t\t\t\t\t";
@@ -479,11 +469,12 @@ class Wp_Dfp_Ads {
 
 		/**
 		 * Filters the suffix.
+		 * Allow for manipulation of the DFP keywords
 		 *
 		 * Returning false to this hook is the recommended way to never show an in-article ad
 		 * (even w/one defined in the admin area).
 		 *
-		 * @param string $ad_wrapper String to use and wrap the article.
+		 * @param string	$suffix		String with the generated suffix so far
 		 */
 		$suffix	= apply_filters( 'wp_dfp_ads_keywords', $suffix );
 
@@ -496,13 +487,67 @@ class Wp_Dfp_Ads {
 	}
 
 	/**
+	 * Generates an associative array with what's needed to create an ad map
+	 *
+	 * @param  array	$ad		array with needed metadata and info for map
+	 *
+	 * @return array			array with keys 'map' and 'map_slot_markup'
+	 */
+	public function generate_ad_maps( $ad = null ) {
+
+		// making sure this isn't accessed randomly
+		if ( $ad === null ) {
+			return;
+		}
+
+		// making ABSOLUTELY sure this wasn't executed without the right data
+		if ( empty( $ad['advert-mapname'] ) || empty( $ad['advert-breakpoints'] ) ) {
+			return;
+		}
+
+		$ad_map	= "var {$ad['advert-mapname']} = googletag.sizeMapping()";
+
+		// attach each breakpoint to the map
+		foreach ( $ad['advert-breakpoints'] as $ad_breakpoint ) {
+
+			$breakpoint					= $ad_breakpoint['breakpoint'] != '-' ? $ad_breakpoint['breakpoint'] : '0';
+			$ad_breakpoint['adsize']	= $ad_breakpoint['adsize'] != '' ? $ad_breakpoint['adsize'] : array( '0x0' );
+
+			foreach ( $ad_breakpoint['adsize'] as $key => $single_breakpoint ) {
+
+				if ( $single_breakpoint == 'fluid' ) {
+					$ad_breakpoint['adsize'][$key]	= '\'fluid\'';
+				} else {
+					$ad_breakpoint['adsize'][$key]	= "[$single_breakpoint]";
+				}
+
+			}
+
+			rsort( $ad_breakpoint['adsize'] );
+
+			$breakpoint_sizes	= ($ad_breakpoint['adsize'][0] != '[0x0]') ? implode( ',', $ad_breakpoint['adsize'] ) : '[]';
+			$breakpoint_sizes	= count( $ad_breakpoint['adsize'] ) > 1 ? '[' . $breakpoint_sizes . ']' : $breakpoint_sizes;
+			$breakpoint_sizes	= str_replace( 'x', ',', $breakpoint_sizes );
+
+			$ad_map			.= ".addSize([$breakpoint, 0], $breakpoint_sizes)";
+
+		}
+
+		$ad_map	.= ".build();\n\t\t\t\t";
+
+
+		return $ad_map;
+
+	}
+
+	/**
 	 * Singleton
 	 *
 	 * Returns a single instance of the current class.
 	 */
 	public static function singleton() {
 
-		if ( ! self::$instance )
+		if ( !self::$instance )
 			self::$instance = new self;
 
 		return self::$instance;
@@ -513,9 +558,9 @@ class Wp_Dfp_Ads {
 	 *
 	 * Displays the appropriate ad for the given slot.
 	 *
-	 * @param  mixed	$slot	Name(s) of slot(s) (aka "advert-id") to query.
+	 * @param  mixed	$slot	Name of slot (aka "advert-slot") to query.
 	 *
-	 * @return mixed			Markup to display the ad
+	 * @return					markup to echo out
 	 */
 	public static function display_ad( $slot = null ) {
 		global $wpdb;
@@ -539,13 +584,14 @@ class Wp_Dfp_Ads {
 
 			foreach ( $ads_object->posts as $ad_id ) {
 
-				$ads[]	= self::get_meta(
+				$ads[]	= self::_get_meta(
 					$ad_id,
 					array(
 						'advert-slot',
 						'advert-logic',
 						'advert-markup',
-						'advert-exclude-lazyload'
+						'advert-exclude-lazyload',
+						'advert-exclude-refresh'
 					),
 					'post',
 					OBJECT
@@ -570,7 +616,7 @@ class Wp_Dfp_Ads {
 					$logic = $ad->{'advert-logic'};
 					$logic = "return ( {$logic} ? true : false );";
 
-					if( false === eval( $logic ) ) {
+					if ( false === eval( $logic ) ) {
 						continue;
 					}
 
@@ -636,7 +682,7 @@ class Wp_Dfp_Ads {
 	 * @param  string $content The content before logic is applied
 	 * @return string          The content with/without in-article ad
 	 */
-	public static function inarticle_ad( $content ){
+	public static function inarticle_ad( $content ) {
 
 		$inarticle_ad	= Wp_Dfp_Ads::display_ad( 'inarticle' );
 
@@ -685,7 +731,7 @@ class Wp_Dfp_Ads {
 				$word_count = count( explode( ' ', $paragraph ) );
 				$char_count = strlen( $paragraph );
 
-				if ( preg_match( "~<(?:ul|li|img)[ >]~", $paragraph ) || $char_count < 140 ){
+				if ( preg_match( "~<(?:ul|li|img|table)[ >]~", $paragraph ) || $char_count < 140 ) {
 
 					$valid_ps_grid[$k]  = 0;
 
@@ -702,15 +748,6 @@ class Wp_Dfp_Ads {
 
 			// only apply inarticle ad if there is 8 VALID paragraphs or more AND the VALID content is more than 1200 characters long
 			if ( $valid_ps_count >= 8 && $valid_ps_characters > 1200 ) {
-
-				// check if the editor/author wants the inarticle ad at the bottom of the article
-				$inarticle_at_bottom	= get_post_meta( get_the_ID(), '_inarticle_at_bottom', true );
-
-				if ( !empty( $inarticle_at_bottom ) ) {
-
-					return $content . $ad_text;
-
-				}
 
 				// split into two but check if those two paragraphs are VALID paragraphs
 				// use the original paragraph count to check for where to split
@@ -774,7 +811,7 @@ class Wp_Dfp_Ads {
 
 			}
 
-		} // end if( is_single() )
+		} // end if ( is_single() )
 
 		// $content is returned, unaltered if conditions not met, and with ad if proper placement and conditions allow it
 		return $content;
@@ -793,6 +830,15 @@ class Wp_Dfp_Ads {
 			}
 
 			wp_enqueue_script( 'wp-dfp-ads-lazyload', WP_DFP_ADS_URL .'js/lazy-load.min.js', array('jquery'), WP_DFP_ADS_VERSION, true );
+		}
+
+		if ( self::$refresh_status ) {
+			// make sure jQuery is enqueued
+			if ( !wp_script_is( 'jquery' ) ) {
+				wp_enqueue_script( 'jquery', 'https://code.jquery.com/jquery-2.2.4.min.js', array(), '2.2.4', true );
+			}
+
+			wp_enqueue_script( 'wp-dfp-ads-refresh', WP_DFP_ADS_URL .'js/refresh.min.js', array('jquery'), WP_DFP_ADS_VERSION, true );
 		}
 
 	}
@@ -861,7 +907,7 @@ class Wp_Dfp_Ads {
 	 *
 	 * @return mixed	MySQL object/Associative Array containing returned post metadata.
 	 */
-	public static function get_meta( $id = null, $fields = array(), $type = 'post', $output = ARRAY_A ) {
+	public static function _get_meta( $id = null, $fields = array(), $type = 'post', $output = ARRAY_A ) {
 		global $wpdb;
 
 		$fields		= esc_sql( $fields );

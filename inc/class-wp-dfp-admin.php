@@ -22,7 +22,7 @@ class Wp_Dfp_Admin {
 	 */
 	public static function singleton() {
 
-		if ( ! self::$instance )
+		if ( !self::$instance )
 			self::$instance = new self;
 
 		return self::$instance;
@@ -53,7 +53,7 @@ class Wp_Dfp_Admin {
 	/**
 	 * Create Plugin: loading files for the plugin.
 	 */
-	public function register_files( $hook ){
+	public function register_files( $hook ) {
 
 		global $wp_dfp_ads_options_page;
 		global $post_type;
@@ -62,7 +62,7 @@ class Wp_Dfp_Admin {
 			return;
 
 		// queue main styles and scripts
-		wp_enqueue_style( 'wp-dfp-ads-styles-admin', WP_DFP_ADS_URL .'css/metabox-ui.min.css', array(), WP_DFP_ADS_VERSION );
+		wp_enqueue_style( 'wp-dfp-ads-styles-admin', WP_DFP_ADS_URL .'css/metaboxes-ui.min.css', array(), WP_DFP_ADS_VERSION );
 
 	}
 
@@ -136,6 +136,33 @@ class Wp_Dfp_Admin {
 			'desc'	=> 'Turn lazy loaded ads on/off.'
 		) );
 
+		$cmb->add_field( array(
+			'id'	=> 'refresh-settings',
+			'name'	=> __( 'Refresh', 'wp-dfp-ads' ),
+			'type'	=> 'title',
+			'desc'	=> 'Refreshing ads are based on a minimum of 50% of the ad being in the viewport.'
+		) );
+
+		$cmb->add_field( array(
+			'id'	=> 'refresh',
+			'name'	=> __( 'Refresh Ads Status (on/off)', 'wp-dfp-ads' ),
+			'type'	=> 'checkbox',
+			'desc'	=> 'Turn refresh ads on/off.'
+		) );
+
+		$cmb->add_field( array(
+			'id'			=> 'refresh-time',
+			'name'			=> __( 'Refresh Timer', 'wp-dfp-ads' ),
+			'type'			=> 'text_small',
+			'desc'			=> 'Amount of time (in seconds) that ads should be refreshed once the counter is initiated (at load and when user focuses/returns to tab).',
+			'default'		=> '30',
+			'attributes'	=> array(
+				'type'	=> 'number',
+				'min'	=> '0',
+				'step'	=> '1'
+			),
+		) );
+
 	}
 
 	/**
@@ -148,7 +175,7 @@ class Wp_Dfp_Admin {
 			return;
 		}
 
-		add_settings_error( $this->key . '-notices', '', __( 'Settings updated.', 'wp_dfp_ads' ), 'updated' );
+		add_settings_error( $this->key . '-notices', '', __( 'Settings updated.', 'wp-dfp-ads' ), 'updated' );
 		settings_errors( $this->key . '-notices' );
 
 	}

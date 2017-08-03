@@ -12,6 +12,7 @@ class Post_Type_Ads {
 		'advert-logic',
 		'advert-markup',
 		'advert-exclude-lazyload',
+		'advert-exclude-refresh',
 		'advert-mapname',
 		'advert-breakpoints'
 	);
@@ -44,6 +45,7 @@ class Post_Type_Ads {
 	public function add_advert_columns( $columns = array() ) {
 
 		$lazyload_status	= wp_dfp_ads_get_option( 'lazy-load' ) ? true : false;
+		$refresh_status		= wp_dfp_ads_get_option( 'refresh' ) ? true : false;
 
 		unset( $columns['date'] );
 
@@ -52,6 +54,9 @@ class Post_Type_Ads {
 
 		if ( $lazyload_status )
 			$columns['advert-exclude-lazyload']	= 'Lazy Load';
+
+		if ( $refresh_status )
+			$columns['advert-exclude-refresh']		= 'Ad Refresh';
 
 		return $columns;
 	}
@@ -75,6 +80,8 @@ class Post_Type_Ads {
 		if ( 'advert-exclude-lazyload' === $name )
 			echo get_post_meta( $post->ID, 'advert-exclude-lazyload', true ) ? 'excluded': '';
 
+		if ( 'advert-exclude-refresh' === $name )
+			echo get_post_meta( $post->ID, 'advert-exclude-refresh', true ) ? 'excluded': '';
 	}
 
 	/**
@@ -90,7 +97,6 @@ class Post_Type_Ads {
 
 		$columns['advert-id']					= 'advert-id';
 		$columns['taxonomy-advert-size']		= 'taxonomy-advert-size';
-		// $columns['advert-logic']				= 'advert-logic';
 
 		return $columns;
 	}
@@ -113,7 +119,7 @@ class Post_Type_Ads {
 			$orderby	= ( !empty( $_REQUEST['orderby'] ) ? $_REQUEST['orderby'] : '' );
 
 			$custom_columns = array(
-				'advert-id' => array( 'orderby' => 'meta_value', 'meta_key' => 'advert-id' ),
+				'advert-id' => array( 'orderby' => 'meta_value', 'meta_key' => 'advert-id' )
 			);
 
 			if ( array_key_exists( $orderby, $custom_columns ) ) {
@@ -169,7 +175,15 @@ class Post_Type_Ads {
 	 * @param WP_Post $post The object for the current post/page.
 	 */
 	public function register_meta_boxes( $post = null ) {
-		add_meta_box( 'advert_meta_box', 'Ad Details', array( $this, 'generate_advert_meta_box' ), 'advert', 'normal', 'default' );
+
+		add_meta_box(
+			'advert_meta_box',
+			'Ad Details',
+			array( $this, 'generate_advert_details_box' ),
+			'advert',
+			'normal'
+		);
+
 	}
 
 	/**
@@ -250,11 +264,11 @@ class Post_Type_Ads {
 	}
 
 	/**
-	 * Generate Advert Meta Box
+	 * Generate Advert Details Box
 	 *
 	 * Generates and displays the "Advert Details" meta box.
 	 */
-	public function generate_advert_meta_box() {
+	public function generate_advert_details_box() {
 
 		global $post;
 
@@ -266,6 +280,7 @@ class Post_Type_Ads {
 		$logic		= ( !empty( $post_meta['advert-logic'] ) ? $post_meta['advert-logic']->meta_value : '' );
 		$markup		= ( !empty( $post_meta['advert-markup'] ) ? $post_meta['advert-markup']->meta_value : '' );
 		$lazyload	= ( !empty( $post_meta['advert-exclude-lazyload'] ) ? $post_meta['advert-exclude-lazyload']->meta_value : '' );
+		$refresh	= ( !empty( $post_meta['advert-exclude-refresh'] ) ? $post_meta['advert-exclude-refresh']->meta_value : '' );
 
 		wp_nonce_field( 'wp_dfp_ads_meta_box','wp_dfp_ads_meta_box_nonce' );
 
@@ -274,45 +289,47 @@ class Post_Type_Ads {
 	}
 
 	/**
-	 * Save Post Meta
+	 * Save Advert Meta
 	 *
 	 * Verifies that the given post is being saved, the request is valid, and
 	 * the user has the necessary permissions before handing off to the
 	 * post-type-specific save method.
 	 *
-	 * @param int $post_id
+	 * @param int $post_ID
 	 */
-	public function save_post_meta( $post_id = null ) {
+	public function save_advert_meta( $post_ID = null, $post = null, $update = null ) {
 
-		/*
-		* We need to verify this came from our screen and with proper authorization,
-		* because the save_post action can be triggered at other times.
-		*/
+		// let's be safe
+		if ( $post_ID == null || !is_int( $post_ID )  )
+			return;
 
 		// if this is an autosave, our form has not been submitted, so we don't want to do anything.
 		if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE )
 			return;
 
-		// check that our nonce is set and it is valid.
-		if ( !isset( $_POST['wp_dfp_ads_meta_box_nonce'] ) || !wp_verify_nonce( $_POST['wp_dfp_ads_meta_box_nonce'], 'wp_dfp_ads_meta_box' ) )
+		// check the user's permissions.
+		if ( !current_user_can( 'edit_post', $post_ID ) )
 			return;
 
-		// check the user's permissions.
-		if ( isset( $_POST['post_type'] ) && 'page' == $_POST['post_type'] ) {
+		write_to_log($_POST);
+		die();
 
-			if ( !current_user_can( 'edit_page', $post_id ) )
-				return;
+		// check if we are deleting an advert meta
+		if ( !empty( $_POST['deleteadvertmeta'] ) ) {
+			$this->_delete_advert_keyvalue( $post_ID );
+			return;
+		}
 
-		} else {
-
-			if ( !current_user_can( 'edit_post', $post_id ) )
-				return;
+		// check if we are adding an advert meta
+		if ( !empty( $_POST['addkeyvalue'] ) ) {
+			$this->_add_advert_keyvalue( $post_ID );
+			return;
 		}
 
 		$save_method = "_save_{$_POST['post_type']}_meta_box";
 
 		if ( method_exists( $this, $save_method ) )
-			call_user_func( array( $this, $save_method ), $post_id );
+			call_user_func( array( $this, $save_method ), $post_ID );
 	}
 
 	/**
@@ -374,14 +391,12 @@ class Post_Type_Ads {
 		add_action( 'manage_advert_posts_custom_column', array( $this, 'set_advert_column_values' ) );
 		add_action( 'admin_notices', array( $this, 'do_admin_notices' ) );
 		add_action( 'add_meta_boxes', array( $this, 'register_meta_boxes' ) );
-		add_action( 'save_post', array( $this, 'save_post_meta' ) );
-
+		add_action( 'save_post_advert', array( $this, 'save_advert_meta' ), 10, 3 );
 		// cmb2 dependent hooks
 		add_action( 'cmb2_admin_init', array( $this, 'add_responsive_sizes_metabox' ) );
 
 		add_filter( 'pre_get_posts', array( $this, 'sort_custom_fields' ) );
 		add_filter( 'manage_edit-advert_sortable_columns', array( $this, 'set_sortable_advert_columns' ) );
-		add_filter( 'posts_clauses', array( $this, 'orderby_taxonomy' ), 10, 2 );
 
 	}
 
@@ -434,49 +449,32 @@ class Post_Type_Ads {
 	 *
 	 * Handles the sanitizing and saving of the advert meta box fields.
 	 *
-	 * @param int $post_id
+	 * @param int $post_ID
 	 */
-	protected function _save_advert_meta_box( $post_id = null ) {
+	protected function _save_advert_meta_box( $post_ID = null ) {
 
-		if ( !current_user_can( 'manage_options', $post_id ) )
+		// check that our nonce is set and it is valid.
+		if ( !isset( $_POST['wp_dfp_ads_meta_box_nonce'] ) || !wp_verify_nonce( $_POST['wp_dfp_ads_meta_box_nonce'], 'wp_dfp_ads_meta_box' ) )
 			return;
 
+		/**
+		 * MOVE THIS TO SETTINGS ADMIN PAGE CHECK
+		 * NOT NEEDED HERE SINCE WE ARE SAVING AT POST LEVEL
+		if ( !current_user_can( 'manage_options', $post_ID ) )
+			return;
+		 */
+
+		// Go through our non key/value meta data for the Advert CPT
+		// and manipulate it as we wish
 		foreach ( $this->advert_meta as $field ) {
 
 			$name = str_replace( '-', '_', $field );
 
-			if ( 'advert_exclude_lazyload' === $name ) {
+			if ( isset( $_POST[$name] ) ) {
 
-				$meta_value	= isset( $_POST[$name] ) ? 'on' : false;
+				if ( 'advert_slot' === $name ) {
 
-				update_post_meta( $post_id, "{$field}", $meta_value );
-
-			} elseif ( isset( $_POST[$name] ) ) {
-
-				if ( 'advert_id' === $name ) {
-
-					/*	MADE THIS SO THAT MORE THAN ONE ID COULD BE USED
-						UNECESSARY AT MOMENT. CREATE ONE AD PER LOCATION
-					$meta_value	= is_array( $_POST[$name] ) ? array_filter( $_POST[$name] ) : (array) $_POST[$name];
-
-					foreach ( $meta_value as $key => $value ) {
-
-						// sanitize text field
-						$value				= sanitize_text_field( $value );
-						// turn spaces into dashes
-						$meta_value[$key]	= str_replace( ' ', '-', $value );
-
-					}
-					*/
-
-					// sanitize text field
-					$meta_value	= sanitize_text_field( $_POST[$name] );
-					// turn spaces into dashes
-					$meta_value	= str_replace( ' ', '-', $meta_value );
-
-				} elseif ( 'advert_slot' === $name ) {
-
-					$meta_value = $this->_generate_advert_slots( $post_id );
+					$meta_value = $this->_generate_advert_slots( $post_ID );
 
 				} elseif ( 'advert_logic' === $name ) {
 
@@ -513,6 +511,27 @@ class Post_Type_Ads {
 					 */
 					$allowed_tags = wp_kses_allowed_html( 'post' );
 
+					// allow srcset and sizes for img tags for responsive images
+					$allowed_tags['img']['srcset']	= 1;
+					$allowed_tags['img']['sizes']	= 1;
+
+					// add picture and source HTML tags and their attributes
+					$allowed_tags['picture']	= array(
+						'class'	=> 1,
+						'id'	=> 1
+					);
+
+					$allowed_tags['source']	= array(
+						'srcset'	=> 1,
+						'media'		=> 1,
+						'type'		=> 1
+					);
+
+					$allowed_tags['script'] = array(
+						'id' => array(),
+						'type' => array()
+					);
+
 					$allowed_tags['script'] = array(
 						'id' => array(),
 						'type' => array()
@@ -529,7 +548,13 @@ class Post_Type_Ads {
 
 				}
 
-				update_post_meta( $post_id, "{$field}", $meta_value );
+				update_post_meta( $post_ID, "{$field}", $meta_value );
+
+			} else {
+				// Catch all for values (checked) that if are not set in admin
+				// are also not set in $_POST.
+				// Therefore, being false
+				update_post_meta( $post_ID, "{$field}", false );
 
 			}
 
@@ -579,16 +604,16 @@ class Post_Type_Ads {
 	/**
 	 * Get Post Meta
 	 *
-	 * Utility function used to consolidate the querying of multiple meta values
+	 * Utility function used to consolidate the quering of multiple meta values
 	 * for the given post.
 	 *
-	 * @param int $post_id
+	 * @param int $post_ID
 	 * @param array $fields
 	 */
-	protected function _get_post_meta( $post_id = null, $fields = array() ) {
+	protected function _get_post_meta( $post_ID = null, $fields = array() ) {
 		global $wpdb;
 
-		$query = "SELECT meta_key, meta_value FROM {$wpdb->postmeta} WHERE post_id = {$post_id}";
+		$query = "SELECT meta_key, meta_value FROM {$wpdb->postmeta} WHERE post_ID = {$post_ID}";
 
 		if ( !empty( $fields ) )
 			$query .= " AND meta_key IN ( '". implode( "','", $fields ) ."' )";
@@ -601,32 +626,41 @@ class Post_Type_Ads {
 	 *
 	 * Dynamically generates the "slot name" for the given "advert" when it is saved.
 	 *
-	 * @param  int $post_id ID of the "advert" being saved.
+	 * @param  int $post_ID ID of the "advert" being saved.
 	 *
 	 * @return string Name of the slot the "advert" belongs to.
 	 */
-	protected function _generate_advert_slots( $post_id = null ) {
+	protected function _generate_advert_slots( $post_ID = null ) {
 
 		$slots = array();
 
-		$sizes		= wp_get_object_terms( $post_id, 'advert-size', array( 'orderby' => 'slug', 'order' => 'desc', 'fields' => 'slugs' ) );
-		$ids		= get_post_meta( $post_id, 'advert-id' );
+		$advert_IDs	= get_post_meta( $post_ID, 'advert-id' );
 
-		if ( !empty( $ids ) && $ids !== false && !empty( $sizes ) && !is_wp_error( $sizes ) ) {
+		$sizes = wp_get_object_terms(
+			$post_ID,
+			'advert-size',
+			array(
+				'orderby'	=> 'slug',
+				'order'		=> 'desc',
+				'fields'	=> 'slugs'
+			)
+		);
 
-			foreach ( $ids as $id ) {
+		if ( !empty( $advert_IDs )  && !empty( $sizes ) && !is_wp_error( $sizes ) ) {
+
+			foreach ( $advert_IDs as $advert_ID ) {
 
 				// we have access to the ID so we delete the transient for the front end
 				// and also the general ads meta transient since it will need to be updated
-				delete_transient( $id . '_slot_ad' );
+				delete_transient( $advert_ID . '_slot_ad' );
 				delete_transient( 'ads_meta' );
 
-				$id = str_replace('-', '_', $id);
+				$advert_ID = str_replace('-', '_', $advert_ID);
 
 				if ( 1 === count( $sizes ) ) {
 
 					$size		= Wp_Dfp_Ads::_parse_slot_name( $sizes[0] );
-					$slots[]	= sprintf( 'slot_%s_%s', $size, $id );
+					$slots[]	= sprintf( 'slot_%s_%s', $size, $advert_ID );
 
 				} else {
 
@@ -635,7 +669,7 @@ class Post_Type_Ads {
 					$size	= Wp_Dfp_Ads::_parse_slot_name( $ss[0] );
 					unset( $ss[0] );
 
-					$slot	= sprintf( 'slot_%s_%s_', $size, $id );
+					$slot	= sprintf( 'slot_%s_%s_', $size, $advert_ID );
 
 					foreach ( $ss as $size ) {
 						$slot	.= Wp_Dfp_Ads::_parse_slot_name( $size ) .'_';

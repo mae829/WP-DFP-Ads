@@ -1,39 +1,41 @@
-jQuery(document).ready(function($) {
+jQuery(document).ready( function($) {
 
 	var $window	= $(window);
 
-	$window.on('load',function(){
+	$window.on('load', function() {
 
 		var adsLoaded	= [],
-			adsToLoad	= [],
-			throttle		= function(a,b){
-				var c,d;
-				return function(){
-					var e =this,
-						f =arguments,
+			throttle	= function( a, b ) {
+				var c,
+					d;
+
+				return function() {
+					var e = this,
+						f = arguments,
 						g =+new Date;
 
-						if ( c && g < c + a ) {
-							clearTimeout(d),
-							d = setTimeout(
-								function(){
-									c = g, b.apply(e,f)
-								}, a )
-						} else {
-							c = g, b.apply(e,f)
-						}
+					if ( c && g < c + a ) {
+						clearTimeout(d),
+						d = setTimeout(
+							function(){
+								c = g,
+								b.apply( e, f )
+							}, a )
+					} else {
+						c = g,
+						b.apply( e, f )
+					}
 				}
 			};
 
 		$window.on( 'scroll resize', throttle( 500, initAds ) );
 
-		adsToLoad	= refresh_slots;
-
-		initAds();
+		// Duplicate ads object to lazy-load ads but allow for original to exist
+		adsToLoad	= jQuery.extend( true, {}, lazyload_slots );
 
 		function initAds() {
 
-			adsToLoadArray	= Object.keys(adsToLoad);
+			adsToLoadArray	= Object.keys( adsToLoad );
 
 			// if we've loaded all ads, break out
 			if ( !adsToLoadArray.length ) return;
@@ -42,7 +44,7 @@ jQuery(document).ready(function($) {
 				winHeight	= $window.height();
 
 			for ( var name in adsToLoad ) {
-				if (adsToLoad.hasOwnProperty(name) ) {
+				if ( adsToLoad.hasOwnProperty( name ) ) {
 					var id				= adsToLoad[name].getSlotElementId(),
 						$this			= $('#'+id);
 
@@ -55,16 +57,18 @@ jQuery(document).ready(function($) {
 					var offset_top		= $this.offset().top,
 						outer_height	= $this.outerHeight();
 
-					if ( offset_top - winScroll > winHeight || winScroll - offset_top - outer_height - winHeight > 0 )
+					// if too far up or high, but with ±200px before it shows up on screen
+					if ( offset_top - winScroll > winHeight + 200 || winScroll - offset_top - outer_height - ( winHeight + 200 ) > 0 )
 						continue;
 
 					// Load the ad!
 					googletag.cmd.push( function() {
-						googletag.pubads().refresh([adsToLoad[name]]);
+						googletag.pubads().refresh( [adsToLoad[name]] );
 					});
 
 					// Add ad to adsLoaded object and remove from the adsToLoad object
 					adsLoaded[name]	= adsToLoad[name];
+
 					delete adsToLoad[name];
 
 				}
@@ -72,6 +76,8 @@ jQuery(document).ready(function($) {
 
 		}
 
-	});
+		initAds();
 
-});
+	} );
+
+} );

@@ -1,16 +1,16 @@
 <?php
-	// Check if lazyload is on
-	$lazyload_status	= function_exists( 'wp_dfp_ads_get_option' ) && wp_dfp_ads_get_option( 'lazy-load' ) ? true : false;
+	// Check if options are on
+	$lazyload_status	= wp_dfp_ads_get_option( 'lazy-load' ) ? true : false;
+	$refresh_status		= wp_dfp_ads_get_option( 'refresh' ) ? true : false;
 ?>
 <table class="table__meta-box">
 	<tr>
 		<td>
 			<label for="advert-id">ID:</label>
 
+			<input type="text" name="advert_id" id="advert_id" value="<?php echo $advert_id ?>" class="regular-text" required="required">
 			<p class="description">Unique ID to target ads within templates using the Wp_Ad_Dfp class function "display_ad".</p>
 			<p class="description">Ad Slot will be generated based on this field.</p>
-
-			<input type="text" name="advert_id" id="advert_id" value="<?php echo $advert_id ?>" class="regular-text">
 		</td>
 	</tr>
 	<tr>
@@ -37,8 +37,17 @@
 	<tr>
 		<td>
 			<label for="advert-exclude-lazyload">Turn Lazy Load Off:</label>
-			<input type="checkbox" name="advert_exclude_lazyload" id="advert-exclude-lazyload" value="1" <?php checked( $lazyload, 'on' ); ?>>
+			<input type="checkbox" name="advert_exclude_lazyload" id="advert-exclude-lazyload" value="1" <?php checked( $lazyload ); ?>>
 			<p class="description">Check this box to exclude this ad from lazy-load rendering.</p>
+		</td>
+	</tr>
+	<?php endif; ?>
+	<?php if ( $refresh_status ): ?>
+	<tr>
+		<td>
+			<label for="advert-exclude-refresh">Turn Refresh Ad Off:</label>
+			<input type="checkbox" name="advert_exclude_refresh" id="advert-exclude-refresh" value="1" <?php checked( $refresh ); ?>>
+			<p class="description">Check this box to exclude this ad from refreshing cycles on the page.</p>
 		</td>
 	</tr>
 	<?php endif; ?>
