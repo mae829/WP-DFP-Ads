@@ -80,7 +80,7 @@ jQuery(document).ready(function($) {
 
 				if ( !refresh_slots.hasOwnProperty(slot) ) continue;
 
-				var slot_ID			= refresh_slots[slot].getSlotElementId()
+				var slot_ID			= refresh_slots[slot].getSlotElementId(),
 					isInViewport	= $('#'+slot_ID).isInViewport({ percentInView: 0.5 });
 
 				if ( isInViewport ) {
@@ -156,7 +156,7 @@ jQuery(document).ready(function($) {
 			} else if ( eventsFlag === false ) {
 
 				// bind focus event
-				window.attachEvent( 'focus', startTimer) ;
+				window.attachEvent( 'focus', startTimer );
 
 				// bind blur event
 				window.attachEvent( 'blur', endTimer );
