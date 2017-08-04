@@ -11,6 +11,7 @@ if ( ! defined( 'WP_DFP_ADS_DIR' ) ) {
 class Wp_Dfp_Ads {
 
 	var $advert_meta = array(
+		'_advert-id',
 		'_advert-slot',
 		'_advert-logic',
 		'_advert-markup',
@@ -22,9 +23,9 @@ class Wp_Dfp_Ads {
 
 	static $instance = false;
 
-	public static $lazyload_status = false;
+	public static $lazyload_status;
 
-	public static $refresh_status = false;
+	public static $refresh_status;
 
 	public static $refresh_time;
 
@@ -217,7 +218,7 @@ class Wp_Dfp_Ads {
 							$location,
 							$sizes,
 							$div
-						 );
+						);
 
 						$registered_slots[] = $slot;
 
@@ -731,7 +732,7 @@ class Wp_Dfp_Ads {
 				$word_count = count( explode( ' ', $paragraph ) );
 				$char_count = strlen( $paragraph );
 
-				if ( preg_match( "~<(?:ul|li|img|table)[ >]~", $paragraph ) || $char_count < 140 ) {
+				if ( preg_match( "~<(?:ul|li|img|table|td|tbody|td)[ >]~", $paragraph ) || $char_count < 140 ){
 
 					$valid_ps_grid[$k]  = 0;
 
