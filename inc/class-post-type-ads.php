@@ -451,7 +451,7 @@ class Post_Type_Ads {
 			return;
 		 */
 
-		// Go through our non key/value meta data for the Advert CPT
+		// Go through our meta data for the Advert CPT
 		// and manipulate it as we wish
 		foreach ( $this->advert_meta as $field ) {
 
@@ -512,11 +512,6 @@ class Post_Type_Ads {
 						'srcset'	=> 1,
 						'media'		=> 1,
 						'type'		=> 1
-					);
-
-					$allowed_tags['script'] = array(
-						'id' => array(),
-						'type' => array()
 					);
 
 					$allowed_tags['script'] = array(
@@ -600,7 +595,7 @@ class Post_Type_Ads {
 	protected function _get_post_meta( $post_ID = null, $fields = array() ) {
 		global $wpdb;
 
-		$query = "SELECT meta_key, meta_value FROM {$wpdb->postmeta} WHERE post_ID = {$post_ID}";
+		$query = "SELECT meta_key, meta_value FROM {$wpdb->postmeta} WHERE post_id = {$post_ID}";
 
 		if ( !empty( $fields ) )
 			$query .= " AND meta_key IN ( '". implode( "','", $fields ) ."' )";
