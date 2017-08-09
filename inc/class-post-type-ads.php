@@ -148,12 +148,12 @@ class Post_Type_Ads {
 	public function orderby_taxonomy( $clauses, $wp_query ) {
 
 		if ( !is_admin() ) {
-			return;
+			return $clauses;
 		}
 
 		global $wpdb;
 
-		if ( isset( $wp_query->query['orderby'] ) && (strpos($wp_query->query['orderby'], 'taxonomy-') !== FALSE) ) {
+		if ( isset( $wp_query->query['orderby'] ) && ( strpos($wp_query->query['orderby'], 'taxonomy-') !== FALSE ) ) {
 			$tax = preg_replace("/^taxonomy-/", "", $wp_query->query['orderby']);
 			$clauses['join'] .= "LEFT OUTER JOIN {$wpdb->term_relationships} ON {$wpdb->posts}.ID={$wpdb->term_relationships}.object_id
 				LEFT OUTER JOIN {$wpdb->term_taxonomy} USING (term_taxonomy_id)
