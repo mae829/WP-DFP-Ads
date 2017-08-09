@@ -232,6 +232,14 @@ class Wp_Dfp_Ads {
 
 			}
 
+			/**
+			 * if there was no ads for this page, do not print any of the code
+			 * (so if $slot_definition is blank)
+			 */
+			if ( $slot_definitions === '' ) {
+				return;
+			}
+
 			$html = '<script>' ."\n\t\t\t";
 
 				if ( self::$lazyload_status ) {
