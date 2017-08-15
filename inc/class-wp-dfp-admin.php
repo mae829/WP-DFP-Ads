@@ -42,7 +42,6 @@ class Wp_Dfp_Admin {
 
 		global $wp_dfp_ads_options_page;
 
-		$wp_dfp_ads_options_page	= add_options_page( 'Ads Settings', 'Advertisements', 'manage_options', 'wp-dfp-ads', array( $this, 'admin_page' ) );
 		$wp_dfp_ads_options_page	= add_submenu_page(
 			"edit.php?post_type=advert",
 			'Ads Settings',
