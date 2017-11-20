@@ -740,7 +740,7 @@ class Wp_Dfp_Ads {
 				$word_count = count( explode( ' ', $paragraph ) );
 				$char_count = strlen( $paragraph );
 
-				if ( preg_match( "~<(?:ul|li|img|table|td|tbody|td)[ >]~", $paragraph ) || $char_count < 140 ){
+				if ( preg_match( "~<(?:ul|li|img|table|td|tbody|td)[ >]~", $paragraph ) || $char_count < 140 ) {
 
 					$valid_ps_grid[$k]  = 0;
 
@@ -896,6 +896,7 @@ class Wp_Dfp_Ads {
 		$term = str_replace( '_&', '', $term );
 		$term = str_replace( "'", '', $term );
 		$term = str_replace( ',', '', $term );
+		$term = str_replace( ' ', '_', $term );
 		$term = str_replace( '-', '_', $term ); // DFP doesnt like dashes in it's ad units
 		$term = preg_replace('/[^a-zA-Z0-9-_]/', '', $term);
 		$term = strtolower( $term );
